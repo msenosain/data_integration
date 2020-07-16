@@ -1,8 +1,11 @@
 # Loading code
 source("/Users/senosam/Documents/Repositories/Research/data_analysis_cytof/R/20_ClustAnnot_functions.R")
+library(RCy3)
+library(igraph)
 
 # Loading data
 load("/Users/senosam/Documents/Massion_lab/CyTOF_summary/both/cellsubtypes.RData")
+pdata <- read.csv("/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2020FEB25_SA.csv")
 
 # Organizing data
 # All cell/sub types B have Fib_Mesenchymal
@@ -25,27 +28,45 @@ annot_df$subtype_B4 <- factor(annot_df$subtype_B4, levels = c("Epithelial",
 
 prcnt_by_pt1 <- ClassAbundanceByPt(data=annot_df, ptID_col = 'pt_ID', 
     class_col = 'subtype_B')
-#rownames(prcnt_by_pt1) <- paste0(rownames(prcnt_by_pt1), '_', ref$CANARY)
 
 #compute correlation matrix
 corr_pt <- Hmisc::rcorr(t(as.matrix(prcnt_by_pt1)), type = 'spearman')
 corr_mat <- corr_pt$r
+
 # select only significant correlations
 corr_pt$P[which(is.na(corr_pt$P)==TRUE)] <- 0
 k <- which(corr_pt$P<0.05)
 corr_mat[-k] <- 0
-corr_mat[corr_mat==1] <-0
+
 # Keep only high correlations
-corr_mat[corr_mat<0.5] <- 0
+#corr_mat[corr_mat<0.5] <- 0
  
 # Make an Igraph object from this matrix:
 network <- graph_from_adjacency_matrix(corr_mat, weighted=T, mode="undirected", diag=F)
-
-# Basic chart
-plot(network)
-
 E(network)$weight
 
+# Open Cytoscape and confirm connexion
+cytoscapePing()
+createNetworkFromIgraph(network,"cytof_ntw")
+
+# Append node attributes (clinical data) to network in Cytoscape
+pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
+loadTableData(pdata)
+
+# Append node attributes (ct %) to network in Cytoscape
+prcnt_by_pt1 <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), stringsAsFactors = FALSE)
+loadTableData(prcnt_by_pt1)
+
+
+
+# protein expression
+## median protein expression per patient
+## median protein expression per cell type per patient
+## add this info to the nodes attributes
+
+load("/Users/senosam/Documents/Massion_lab/CyTOF_summary/both/analysis/subsets/subset_exprmat.RData")
+sbst_exp <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, stringsAsFactors = FALSE)
+loadTableData(sbst_exp)
 
 
 
