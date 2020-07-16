@@ -14,7 +14,7 @@ pdata <- read.csv("/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_
 # All cell/sub types B have Fib_Mesenchymal
 ref <- ref[-42,] # sample 13376 has been collected twice and will be merged, only one ref is needed
 
-# Changing un-identified T cells into "Other_immune"
+# Changing un-identified T cells and NK into "Other_immune"
 k <- which(annot_df$subtype_B =='T_cells')
 k2 <- which(annot_df$subtype_B =='NK_cells')
 
@@ -30,10 +30,18 @@ annot_df$subtype_B4 <- factor(annot_df$subtype_B4, levels = c("Epithelial",
     "Th_cells"))
 
 prcnt_by_pt1 <- ClassAbundanceByPt(data=annot_df, ptID_col = 'pt_ID', 
-    class_col = 'subtype_B')
-prcnt_by_pt2 <- ClassAbundanceByPt(data=annot_df, ptID_col = 'pt_ID', 
     class_col = 'subtype_B4') # this is epi as one
+prcnt_by_pt2 <- ClassAbundanceByPt(data=annot_df, ptID_col = 'pt_ID', 
+    class_col = 'subtype_B')
 
+# Changing un-identified T cells and NK into "Other_immune" in protein exp data
+sbst_exp <- sbst_exp[-grep('NK|Tcells', colnames(sbst_exp))]
+sbst_exp_2 <- sbst_exp_2[-grep('NK|Tcells', colnames(sbst_exp_2))]
+
+
+###############################################################################
+# NETWORK 1:  BASED ON CELL TYPE PERCENTAGES (EPI AS ONE)
+###############################################################################
 
 ############################-- BUILD NETWORK --############################
 # Compute correlation matrix
@@ -53,23 +61,174 @@ E(network)$weight
 
 # Open Cytoscape and confirm connexion
 cytoscapePing()
-createNetworkFromIgraph(network,"cytof_ntw")
+createNetworkFromIgraph(network,"cytof_ntw1")
 
 
-###############-- APPEND NODE ATTRIBUTES TO NTW IN CYTOSCAPE --###############
-## Clincal data
+###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
+## Clinical data
 pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
-loadTableData(pdata)
+loadTableData(pdata, network = "cytof_ntw1")
 
 ## Cell type percentages
-prcnt_by_pt1 <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
+prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
     stringsAsFactors = FALSE)
-loadTableData(prcnt_by_pt1)
+loadTableData(prcnt, network = "cytof_ntw1")
+prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
+    stringsAsFactors = FALSE)
+loadTableData(prcnt2, network = "cytof_ntw1")
 
 ## Median protein expression per cell type per patient
-sbst_exp <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
+sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
     stringsAsFactors = FALSE)
-loadTableData(sbst_exp)
+loadTableData(sbst, network = "cytof_ntw1")
+sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
+    stringsAsFactors = FALSE)
+loadTableData(sbst2, network = "cytof_ntw1")
+#sbst_exp_2 # epithelial by subset
+
+
+###############################################################################
+# NETWORK 1.2:  BASED ON CELL TYPE PERCENTAGES (EPI BY SUBSETS)
+###############################################################################
+
+############################-- BUILD NETWORK --############################
+# Compute correlation matrix
+corr_pt <- Hmisc::rcorr(t(as.matrix(prcnt_by_pt2)), type = 'spearman')
+corr_mat <- corr_pt$r
+
+# Select only significant correlations
+corr_pt$P[which(is.na(corr_pt$P)==TRUE)] <- 0
+k <- which(corr_pt$P<0.05)
+corr_mat[-k] <- 0
+#corr_mat[corr_mat<0.5] <- 0 # Keep only high correlations
+ 
+# Make an Igraph object from this matrix:
+network <- graph_from_adjacency_matrix(corr_mat, weighted=T, mode="undirected", 
+    diag=F)
+E(network)$weight
+
+# Open Cytoscape and confirm connexion
+cytoscapePing()
+createNetworkFromIgraph(network,"cytof_ntw1.2")
+
+
+###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
+## Clinical data
+pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
+loadTableData(pdata, network = "cytof_ntw1.2")
+
+## Cell type percentages
+prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
+    stringsAsFactors = FALSE)
+loadTableData(prcnt, network = "cytof_ntw1.2")
+prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
+    stringsAsFactors = FALSE)
+loadTableData(prcnt2, network = "cytof_ntw1.2")
+
+## Median protein expression per cell type per patient
+sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
+    stringsAsFactors = FALSE)
+loadTableData(sbst, network = "cytof_ntw1.2")
+sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
+    stringsAsFactors = FALSE)
+loadTableData(sbst2, network = "cytof_ntw1.2")
+#sbst_exp_2 # epithelial by subset
+
+
+###############################################################################
+# NETWORK 2: BASED ON PROTEIN EXPRESSION BY CELL TYPE
+###############################################################################
+
+############################-- BUILD NETWORK --############################
+sbst_A <- data.frame(sbst_exp[,3:ncol(sbst_exp)], row.names=sbst_exp$pt_ID)
+# Compute correlation matrix
+corr_pt <- Hmisc::rcorr(t(as.matrix(sbst_A)), type = 'spearman')
+corr_mat <- corr_pt$r
+
+# Select only significant correlations
+corr_pt$P[which(is.na(corr_pt$P)==TRUE)] <- 0
+k <- which(corr_pt$P<0.05)
+corr_mat[-k] <- 0
+ 
+# Make an Igraph object from this matrix:
+network <- graph_from_adjacency_matrix(corr_mat, weighted=T, mode="undirected", 
+    diag=F)
+E(network)$weight
+
+# Open Cytoscape and confirm connexion
+cytoscapePing()
+createNetworkFromIgraph(network,"cytof_ntw2")
+
+
+###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
+## Clinical data
+pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
+loadTableData(pdata, network = "cytof_ntw2")
+
+## Cell type percentages
+prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
+    stringsAsFactors = FALSE)
+loadTableData(prcnt, network = "cytof_ntw2")
+prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
+    stringsAsFactors = FALSE)
+loadTableData(prcnt2, network = "cytof_ntw2")
+
+## Median protein expression per cell type per patient
+sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
+    stringsAsFactors = FALSE)
+loadTableData(sbst, network = "cytof_ntw2")
+sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
+    stringsAsFactors = FALSE)
+loadTableData(sbst2, network = "cytof_ntw2")
+#sbst_exp_2 # epithelial by subset
+
+
+
+###############################################################################
+# NETWORK 2: BASED ON PROTEIN EXPRESSION BY CELL TYPE
+###############################################################################
+
+############################-- BUILD NETWORK --############################
+sbst_A <- data.frame(sbst_exp_2[,3:ncol(sbst_exp_2)], row.names=sbst_exp_2$pt_ID)
+# Compute correlation matrix
+corr_pt <- Hmisc::rcorr(t(as.matrix(sbst_A)), type = 'spearman')
+corr_mat <- corr_pt$r
+
+# Select only significant correlations
+corr_pt$P[which(is.na(corr_pt$P)==TRUE)] <- 0
+k <- which(corr_pt$P<0.05)
+corr_mat[-k] <- 0
+ 
+# Make an Igraph object from this matrix:
+network <- graph_from_adjacency_matrix(corr_mat, weighted=T, mode="undirected", 
+    diag=F)
+E(network)$weight
+
+# Open Cytoscape and confirm connexion
+cytoscapePing()
+createNetworkFromIgraph(network,"cytof_ntw2")
+
+
+###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
+## Clinical data
+pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
+loadTableData(pdata, network = "cytof_ntw2.2")
+
+## Cell type percentages
+prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
+    stringsAsFactors = FALSE)
+loadTableData(prcnt, network = "cytof_ntw2.2")
+prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
+    stringsAsFactors = FALSE)
+loadTableData(prcnt2, network = "cytof_ntw2.2")
+
+## Median protein expression per cell type per patient
+sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
+    stringsAsFactors = FALSE)
+loadTableData(sbst, network = "cytof_ntw2.2")
+sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
+    stringsAsFactors = FALSE)
+loadTableData(sbst2, network = "cytof_ntw2.2")
 #sbst_exp_2 # epithelial by subset
 
 
