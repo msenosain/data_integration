@@ -38,6 +38,22 @@ prcnt_by_pt2 <- ClassAbundanceByPt(data=annot_df, ptID_col = 'pt_ID',
 sbst_exp <- sbst_exp[-grep('NK|Tcells', colnames(sbst_exp))]
 sbst_exp_2 <- sbst_exp_2[-grep('NK|Tcells', colnames(sbst_exp_2))]
 
+##########################-- BUILD NODE ATTRIBUTES --##########################
+## Clinical data
+pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
+
+## Cell type percentages
+prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
+    stringsAsFactors = FALSE)
+prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
+    stringsAsFactors = FALSE)
+
+## Median protein expression per cell type per patient
+sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
+    stringsAsFactors = FALSE)
+sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
+    stringsAsFactors = FALSE)
+
 
 ###############################################################################
 # NETWORK 1:  BASED ON CELL TYPE PERCENTAGES (EPI AS ONE)
@@ -66,29 +82,19 @@ createNetworkFromIgraph(network,"cytof_ntw1")
 
 ###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
 ## Clinical data
-pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
-loadTableData(pdata, network = "cytof_ntw1")
+loadTableData(pdata)
 
 ## Cell type percentages
-prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt, network = "cytof_ntw1")
-prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt2, network = "cytof_ntw1")
+loadTableData(prcnt)
+loadTableData(prcnt2)
 
 ## Median protein expression per cell type per patient
-sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst, network = "cytof_ntw1")
-sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst2, network = "cytof_ntw1")
-#sbst_exp_2 # epithelial by subset
+loadTableData(sbst)
+loadTableData(sbst2)
 
 
 ###############################################################################
-# NETWORK 1.2:  BASED ON CELL TYPE PERCENTAGES (EPI BY SUBSETS)
+# NETWORK 1.2:  BASED ON CELL TYPE PERCENTAGES (EPI BY SUBSETS) use this always
 ###############################################################################
 
 ############################-- BUILD NETWORK --############################
@@ -109,30 +115,21 @@ E(network)$weight
 
 # Open Cytoscape and confirm connexion
 cytoscapePing()
-createNetworkFromIgraph(network,"cytof_ntw1.2")
+#createNetworkFromIgraph(network,"cytof_ntw1.2")
+createNetworkFromIgraph(network,"cytof_ntw")
 
 
 ###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
 ## Clinical data
-pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
-loadTableData(pdata, network = "cytof_ntw1.2")
+loadTableData(pdata)
 
 ## Cell type percentages
-prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt, network = "cytof_ntw1.2")
-prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt2, network = "cytof_ntw1.2")
+loadTableData(prcnt)
+loadTableData(prcnt2)
 
 ## Median protein expression per cell type per patient
-sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst, network = "cytof_ntw1.2")
-sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst2, network = "cytof_ntw1.2")
-#sbst_exp_2 # epithelial by subset
+loadTableData(sbst)
+loadTableData(sbst2)
 
 
 ###############################################################################
@@ -162,30 +159,20 @@ createNetworkFromIgraph(network,"cytof_ntw2")
 
 ###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
 ## Clinical data
-pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
-loadTableData(pdata, network = "cytof_ntw2")
+loadTableData(pdata)
 
 ## Cell type percentages
-prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt, network = "cytof_ntw2")
-prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt2, network = "cytof_ntw2")
+loadTableData(prcnt)
+loadTableData(prcnt2)
 
 ## Median protein expression per cell type per patient
-sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst, network = "cytof_ntw2")
-sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst2, network = "cytof_ntw2")
-#sbst_exp_2 # epithelial by subset
+loadTableData(sbst)
+loadTableData(sbst2)
 
 
 
 ###############################################################################
-# NETWORK 2: BASED ON PROTEIN EXPRESSION BY CELL TYPE
+# NETWORK 2.2: BASED ON PROTEIN EXPRESSION BY CELL TYPE
 ###############################################################################
 
 ############################-- BUILD NETWORK --############################
@@ -206,30 +193,20 @@ E(network)$weight
 
 # Open Cytoscape and confirm connexion
 cytoscapePing()
-createNetworkFromIgraph(network,"cytof_ntw2")
+createNetworkFromIgraph(network,"cytof_ntw2.2")
 
 
 ###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
 ## Clinical data
-pdata <- data.frame(pdata, row.names = pdata$pt_ID, stringsAsFactors = FALSE)
-loadTableData(pdata, network = "cytof_ntw2.2")
+loadTableData(pdata)
 
 ## Cell type percentages
-prcnt <- data.frame(prcnt_by_pt1, row.names = row.names(prcnt_by_pt1), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt, network = "cytof_ntw2.2")
-prcnt2 <- data.frame(prcnt_by_pt2, row.names = row.names(prcnt_by_pt2), 
-    stringsAsFactors = FALSE)
-loadTableData(prcnt2, network = "cytof_ntw2.2")
+loadTableData(prcnt)
+loadTableData(prcnt2)
 
 ## Median protein expression per cell type per patient
-sbst <- data.frame(sbst_exp, row.names = sbst_exp$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst, network = "cytof_ntw2.2")
-sbst2 <- data.frame(sbst_exp_2, row.names = sbst_exp_2$pt_ID, 
-    stringsAsFactors = FALSE)
-loadTableData(sbst2, network = "cytof_ntw2.2")
-#sbst_exp_2 # epithelial by subset
+loadTableData(sbst)
+loadTableData(sbst2)
 
 
 
