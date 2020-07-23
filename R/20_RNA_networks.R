@@ -24,8 +24,8 @@ vsd_mat_25 <- varFilter(vsd_mat, var.func=IQR, var.cutoff=0.75, filterByQuantile
 #rownames(vsd_mat_25) <- make.names(rna_raw$Feature_gene_name[which(rna_raw$Feature %in% rownames(vsd_mat_25))], unique = TRUE)
 
 # TOP 10%
-    
-#rownames(vsd_mat_25) <- make.names(rna_raw$Feature_gene_name[which(rna_raw$Feature %in% rownames(vsd_mat_25))], unique = TRUE)
+vsd_mat_10 <- varFilter(vsd_mat, var.func=IQR, var.cutoff=0.90, filterByQuantile=TRUE)    
+#rownames(vsd_mat_10) <- make.names(rna_raw$Feature_gene_name[which(rna_raw$Feature %in% rownames(vsd_mat_25))], unique = TRUE)
 
 # TOP 0.5%
 vsd_mat_2 <- varFilter(vsd_mat, var.func=IQR, var.cutoff=0.995, filterByQuantile=TRUE)
@@ -186,6 +186,130 @@ E(network)$weight
 # Open Cytoscape and confirm connexion
 cytoscapePing()
 createNetworkFromIgraph(network,"rna_ntw10")
+
+###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
+## Clinical data
+loadTableData(pData)
+
+## Cell type percentages
+loadTableData(xcell_dcv)
+loadTableData(mcp_dcv)
+loadTableData(qts_dcv)
+loadTableData(cbs_dcv)
+
+## Median protein expression per cell type per patient
+loadTableData(vsd_mat_t)
+
+
+###############################################################################
+# NETWORK 3: TOP 0.5% VARIANT GENES
+###############################################################################
+
+############################-- BUILD NETWORK --############################
+# Compute correlation matrix
+corr_pt <- Hmisc::rcorr(vsd_mat_2, type = 'spearman')
+corr_mat <- corr_pt$r
+
+# Select only significant correlations
+corr_pt$P[which(is.na(corr_pt$P)==TRUE)] <- 0
+k <- which(corr_pt$P<0.05)
+corr_mat[-k] <- 0
+ 
+# Make an Igraph object from this matrix:
+network <- graph_from_adjacency_matrix(corr_mat, weighted=T, mode="undirected", 
+    diag=F)
+E(network)$weight
+
+# Open Cytoscape and confirm connexion
+cytoscapePing()
+createNetworkFromIgraph(network,"rna_ntw10")
+
+###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
+## Clinical data
+loadTableData(pData)
+
+## Cell type percentages
+loadTableData(xcell_dcv)
+loadTableData(mcp_dcv)
+loadTableData(qts_dcv)
+loadTableData(cbs_dcv)
+
+## Median protein expression per cell type per patient
+loadTableData(vsd_mat_t)
+
+
+
+
+Heatmap(corr_pt$r, name = "mat", 
+        #column_km = 2, 
+        #row_km = 3,
+        heatmap_legend_param = list(color_bar = "continuous"), 
+        row_names_gp = gpar(fontsize = 8),
+        column_names_gp = gpar(fontsize = 8))
+
+
+
+
+###############################################################################
+# NETWORK 4: Deconvolution XCell
+###############################################################################
+
+############################-- BUILD NETWORK --############################
+# Compute correlation matrix
+corr_pt <- Hmisc::rcorr(t(as.matrix(xcell_dcv)), type = 'spearman')
+corr_mat <- corr_pt$r
+
+# Select only significant correlations
+corr_pt$P[which(is.na(corr_pt$P)==TRUE)] <- 0
+k <- which(corr_pt$P<0.05)
+corr_mat[-k] <- 0
+ 
+# Make an Igraph object from this matrix:
+network <- graph_from_adjacency_matrix(corr_mat, weighted=T, mode="undirected", 
+    diag=F)
+E(network)$weight
+
+# Open Cytoscape and confirm connexion
+cytoscapePing()
+createNetworkFromIgraph(network,"rna_xcell")
+
+###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
+## Clinical data
+loadTableData(pData)
+
+## Cell type percentages
+loadTableData(xcell_dcv)
+loadTableData(mcp_dcv)
+loadTableData(qts_dcv)
+loadTableData(cbs_dcv)
+
+## Median protein expression per cell type per patient
+loadTableData(vsd_mat_t)
+
+###############################################################################
+# NETWORK 5: Deconvolution CIBERSORT
+###############################################################################
+
+############################-- BUILD NETWORK --############################
+cbs_dcv2 <- cbs_dcv[,1:(ncol(cbs_dcv)-3)]
+
+# Compute correlation matrix
+corr_pt <- Hmisc::rcorr(t(as.matrix(cbs_dcv2)), type = 'spearman')
+corr_mat <- corr_pt$r
+
+# Select only significant correlations
+corr_pt$P[which(is.na(corr_pt$P)==TRUE)] <- 0
+k <- which(corr_pt$P<0.05)
+corr_mat[-k] <- 0
+ 
+# Make an Igraph object from this matrix:
+network <- graph_from_adjacency_matrix(corr_mat, weighted=T, mode="undirected", 
+    diag=F)
+E(network)$weight
+
+# Open Cytoscape and confirm connexion
+cytoscapePing()
+createNetworkFromIgraph(network,"rna_xcell")
 
 ###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
 ## Clinical data
