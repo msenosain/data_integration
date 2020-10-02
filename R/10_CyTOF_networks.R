@@ -116,7 +116,7 @@ E(network)$weight
 # Open Cytoscape and confirm connexion
 cytoscapePing()
 #createNetworkFromIgraph(network,"cytof_ntw1.2")
-createNetworkFromIgraph(network,"cytof_ntw")
+createNetworkFromIgraph(network,"cytof_prcnts")
 
 
 ###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
@@ -154,7 +154,7 @@ E(network)$weight
 
 # Open Cytoscape and confirm connexion
 cytoscapePing()
-createNetworkFromIgraph(network,"cytof_ntw2")
+createNetworkFromIgraph(network,"cytof_pexp")
 
 
 ###############-- APPEND NODE ATTRIBUTES TO NTW1 IN CYTOSCAPE --###############
