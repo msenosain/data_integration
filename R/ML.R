@@ -50,7 +50,6 @@ prcnt_by_ptE <- ClassAbundanceByPt(data=sbst, ptID_col = 'pt_ID',
     class_col = 'subtype_A')
 prcnt_by_pt <- cbind(prcnt_by_pt/2, prcnt_by_ptE/2, 'ALL_Immune' = imm_oa)
 
-prcnt_by_pt
 
 #---------------------------------------------------------------------------
 # PROTEIN EXPRESSION PER CELL TYPE
@@ -73,7 +72,6 @@ med_endo <- median_by_pt(annot_df, ref, subset_celltype=T, celltype_col='subtype
     ptID_col = 'pt_ID', compare_groups = F)
 colnames(med_endo)[3:ncol(med_endo)] <- paste0('Endo_',colnames(med_endo)[3:ncol(med_endo)])
 med_endo <- match_all(med_endo, med_all)
-# med_endo_w <- cbind(med_endo[,1:2], med_endo[,3:ncol(med_endo)]*prcnt_pt$Endothelial)
 
 
 med_fibmes <- median_by_pt(annot_df, ref, subset_celltype=T, celltype_col='subtype_B4',
@@ -120,17 +118,115 @@ k <- c(grep('CANARY', colnames(sbst_exp)), grep('pt_ID', colnames(sbst_exp)))
 sbst_exp <- sbst_exp[,-sort(k)[3:length(k)]]
 sbst_exp[is.na(sbst_exp)] <- 0
 
-sbst_exp
 
 ############################################################################
 # RNA
 ############################################################################
-# eigen genes (cluster scores from Clust)
-# gene expression of Clust slelected genes (500 genes)
+source('/Users/senosam/Documents/Repositories/Research/data_analysis_rnaseq/R/30_DEGanalysis.R')
+load("/Users/senosam/Documents/Massion_lab/RNASeq_summary/rnaseq.RData")
+environment_set()
+
+# Data preprocessing
+ls_preprocessed <- preprocess_rna(path_rnaseq = '/Users/senosam/Documents/Massion_lab/RNASeq_summary/rnaseq.RData', correct_batch = T, correct_gender = T)
+k <- which(p_all$Vantage_ID %in% colnames(ls_preprocessed$vsd_mat))
+p_all <- p_all[k,]
+pData_rnaseq <- pData_rnaseq[k,]
+
+# Top varaint genes
+vsd_mat <- ls_preprocessed$vsd_mat
+variances <- apply(vsd_mat, 1, var)
+n_genes <- length(which(variances > 0.5))
+#n_genes <- 200
+top_genes <- data.frame(vsd_mat) %>%
+   mutate(gene=rownames(.),
+          symbol=ls_preprocessed$rna_all$Feature_gene_name,
+          variances = variances) %>%
+   arrange(desc(variances)) %>%
+   dplyr::select(gene, symbol) %>%
+   head(n_genes)
+vsd_matTOP <- vsd_mat[top_genes$gene,]
+vsd_matTOP_ENSEMBL <- vsd_matTOP
+rownames(vsd_matTOP) <- top_genes$symbol
+
+vsd_matTOP_ENSEMBL <- cbind(gene = rownames(vsd_matTOP_ENSEMBL), data.frame(vsd_matTOP_ENSEMBL))
+rownames(vsd_matTOP_ENSEMBL) <- c(1:nrow(vsd_matTOP_ENSEMBL))
+
+#---------------------------------------------------------------------------
+# Clust transcriptional programs
+#---------------------------------------------------------------------------
+clust_eigen <- data.frame(readr::read_tsv('/Users/senosam/Documents/Massion_lab/RNASeq_summary/Results_23_Sep_20_2/Eigengenes.tsv'))
+rownames(clust_eigen) <- clust_eigen$X1
+clust_eigen$X1 <- NULL
+clust_eigen <- data.frame(t(clust_eigen))
+rownames(clust_eigen) <- p_all$pt_ID
+
+#---------------------------------------------------------------------------
+# Matrix with genes extracted by Clust
+#---------------------------------------------------------------------------
+clust_genes <- c(as.matrix(data.frame(read_tsv('/Users/senosam/Documents/Massion_lab/RNASeq_summary/Results_23_Sep_20_2/Clusters_Objects.tsv', skip = 1))))
+clust_genes <- na.omit(clust_genes)
+vsd_matTOP_clust <- vsd_matTOP[which(vsd_matTOP_ENSEMBL$gene %in% clust_genes),]
+vsd_matTOP_clust <- data.frame(t(vsd_matTOP_clust))
+rownames(vsd_matTOP_clust) <- p_all$pt_ID
+
+#---------------------------------------------------------------------------
 # Deconvolution results
+#---------------------------------------------------------------------------
+xcell_dcv <- data.frame(t(read.delim("~/Documents/Massion_lab/RNASeq_summary/deconvolution/output/rna_only/XCELL/xCell_rnaseq_fpkm_xCell_1132060320.txt", row.names=1)))
+rownames(xcell_dcv) <- p_all$pt_ID
 
 
 ############################################################################
 # WES
 ############################################################################
 # binary matrix for somatic mutations, remove genes that are mutated in less than 5% of samples
+#...
+
+
+
+############################################################################
+# Building df for models
+############################################################################
+y <- read.csv('/Users/senosam/Documents/Massion_lab/radiomics_summary/TMA36_CANARY_khushbu.csv')
+
+#---------------------------------------------------------------------------
+# M1: CYTOF
+#---------------------------------------------------------------------------
+prcnt_by_pt <- na.omit(prcnt_by_pt[match(y$pt_ID, rownames(prcnt_by_pt)),])
+sbst_exp <- na.omit(sbst_exp[match(y$pt_ID, sbst_exp$pt_ID),])
+y_cytof <- y[which(y$pt_ID %in% sbst_exp$pt_ID),]
+m_cytof <- cbind('SILA_S'=y_cytof$SILA_S, prcnt_by_pt, sbst_exp[,3:ncol(sbst_exp)])
+
+write.csv(m_cytof, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof.csv', row.names = F)
+
+#---------------------------------------------------------------------------
+# M2: RNA SEQ
+#---------------------------------------------------------------------------
+clust_eigen <- na.omit(clust_eigen[match(y$pt_ID, rownames(clust_eigen)),])
+vsd_matTOP_clust <- na.omit(vsd_matTOP_clust[match(y$pt_ID, rownames(vsd_matTOP_clust)),])
+xcell_dcv <- na.omit(xcell_dcv[match(y$pt_ID, rownames(xcell_dcv)),])
+y_rna <- y[which(y$pt_ID %in% rownames(xcell_dcv)),]
+m_rna <- cbind('SILA_S'=y_rna$SILA_S, clust_eigen, vsd_matTOP_clust, xcell_dcv)
+
+write.csv(m_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_rna.csv', row.names = F)
+
+#---------------------------------------------------------------------------
+# M3: MUTATION
+#---------------------------------------------------------------------------
+#...
+
+#---------------------------------------------------------------------------
+# M4: CYTOF & RNA
+#---------------------------------------------------------------------------
+k <- which(rownames(m_cytof) %in% rownames(m_rna))
+m_cytof_rna <- cbind(m_cytof[which(rownames(m_cytof) %in% rownames(m_rna)),],
+    m_rna[which(rownames(m_rna) %in% rownames(m_cytof)),2:ncol(m_rna)])
+
+write.csv(m_cytof_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof_rna.csv', row.names = F)
+
+
+
+#---------------------------------------------------------------------------
+# M1: CYTOF & RNA & MUTATION
+#---------------------------------------------------------------------------
+#...
