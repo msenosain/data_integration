@@ -75,7 +75,8 @@ TrainModel <- function(data, trainIndx, alg = c('RF', 'XGB'),
             save(model_rf, ftimp_rf, pred_rf, rmse_test, TrainSet, TestSet,
                 file = paste0(label, '_RFmodel.RData'))            
         } else {
-            x = list(model_rf, ftimp_rf, pred_rf, rmse_test, TrainSet, TestSet)
+            x = list(model_rf=model_rf, ftimp_rf=ftimp_rf, pred_rf=pred_rf, 
+                rmse_test=rmse_test, TrainSet=TrainSet, TestSet=TestSet)
             return(x)
         }
     }
@@ -140,5 +141,20 @@ TrainModel <- function(data, trainIndx, alg = c('RF', 'XGB'),
         print('XGBoost completed')
     }
 
+}
+
+ftimp_gg <- function(model_ls, n_topft = 10){
+    model_ls$ftimp_rf$importance %>% 
+    dplyr::arrange(desc(.)) %>%
+    dplyr::top_n(n_topft) %>%
+    mutate(Features = rownames(.)) %>%
+    ggplot(., aes(x=reorder(Features, Overall), y=Overall)) +
+        geom_bar(stat="identity", fill='steelblue') +
+        labs(x ="Features", y = "Importance")+
+        coord_flip()
+}
+
+frac_dif <- function(model_ls){
+    frac_dif <- ((model_ls$pred_rf/model_ls$TestSet$SILA_S)-1)*100
 }
 
