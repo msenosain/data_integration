@@ -9,15 +9,18 @@
 #      coord_flip()
 
 
-TrainModel <- function(TrainSet, TestSet, alg = c('RF', 'XGB'), 
-    class_col = class_col, seed = 40, label = label, allowParallel = TRUE, 
-    workers = 4){
+TrainModel <- function(data, trainIndx, alg = c('RF', 'XGB'), 
+    class_col = class_col, seed = 40, allowParallel = TRUE, 
+    workers = 4, save_model = T, label = label){
     library(caret)
 
     # Set seed
     set.seed(seed)    
-    
     alg <- match.arg(alg, c('RF', 'XGB'))
+
+    # Data partition
+    TrainSet <- data[ trainIndx, ]
+    TestSet  <- data[-trainIndx, ]
 
     if(alg == 'RF'){
         message('Running Random Forest')
@@ -60,15 +63,20 @@ TrainModel <- function(TrainSet, TestSet, alg = c('RF', 'XGB'),
 
         message('Testing done!')
 
-        #save RData
-        save(model_rf, ftimp_rf, pred_rf, rmse_test, TrainSet, TestSet,
-            file = paste0(label, '_RFmodel.RData'))
-        message('Random Forest completed')
-        
         # Finalizing parallelization
         if(allowParallel){
         parallel::stopCluster(cluster)
         foreach::registerDoSEQ()
+        }
+        message('Random Forest completed')
+        
+        if(save_model=T){
+            #save RData
+            save(model_rf, ftimp_rf, pred_rf, rmse_test, TrainSet, TestSet,
+                file = paste0(label, '_RFmodel.RData'))            
+        } else {
+            x = list(model_rf, ftimp_rf, pred_rf, rmse_test, TrainSet, TestSet)
+            return(x)
         }
     }
     
