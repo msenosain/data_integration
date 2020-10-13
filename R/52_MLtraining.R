@@ -70,7 +70,7 @@ TrainModel <- function(data, trainIndx, alg = c('RF', 'XGB'),
         }
         message('Random Forest completed')
         
-        if(save_model=T){
+        if(save_model){
             #save RData
             save(model_rf, ftimp_rf, pred_rf, rmse_test, TrainSet, TestSet,
                 file = paste0(label, '_RFmodel.RData'))            
