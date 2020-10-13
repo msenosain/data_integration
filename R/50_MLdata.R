@@ -197,7 +197,7 @@ sbst_exp <- na.omit(sbst_exp[match(y$pt_ID, sbst_exp$pt_ID),])
 y_cytof <- y[which(y$pt_ID %in% sbst_exp$pt_ID),]
 m_cytof <- cbind('SILA_S'=y_cytof$SILA_S, prcnt_by_pt, sbst_exp[,3:ncol(sbst_exp)])
 
-write.csv(m_cytof, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof.csv', row.names = F)
+write.csv(m_cytof, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof.csv', row.names = T)
 
 #---------------------------------------------------------------------------
 # M2: RNA SEQ
@@ -208,7 +208,7 @@ xcell_dcv <- na.omit(xcell_dcv[match(y$pt_ID, rownames(xcell_dcv)),])
 y_rna <- y[which(y$pt_ID %in% rownames(xcell_dcv)),]
 m_rna <- cbind('SILA_S'=y_rna$SILA_S, clust_eigen, vsd_matTOP_clust, xcell_dcv)
 
-write.csv(m_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_rna.csv', row.names = F)
+write.csv(m_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_rna.csv', row.names = T)
 
 #---------------------------------------------------------------------------
 # M3: MUTATION
@@ -222,7 +222,7 @@ k <- which(rownames(m_cytof) %in% rownames(m_rna))
 m_cytof_rna <- cbind(m_cytof[which(rownames(m_cytof) %in% rownames(m_rna)),],
     m_rna[which(rownames(m_rna) %in% rownames(m_cytof)),2:ncol(m_rna)])
 
-write.csv(m_cytof_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof_rna.csv', row.names = F)
+write.csv(m_cytof_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof_rna.csv', row.names = T)
 
 
 
