@@ -206,7 +206,8 @@ clust_eigen <- na.omit(clust_eigen[match(y$pt_ID, rownames(clust_eigen)),])
 vsd_matTOP_clust <- na.omit(vsd_matTOP_clust[match(y$pt_ID, rownames(vsd_matTOP_clust)),])
 xcell_dcv <- na.omit(xcell_dcv[match(y$pt_ID, rownames(xcell_dcv)),])
 y_rna <- y[which(y$pt_ID %in% rownames(xcell_dcv)),]
-m_rna <- cbind('SILA_S'=y_rna$SILA_S, clust_eigen, vsd_matTOP_clust, xcell_dcv)
+#m_rna <- cbind('SILA_S'=y_rna$SILA_S, clust_eigen, vsd_matTOP_clust, xcell_dcv)
+m_rna <- cbind('SILA_S'=y_rna$SILA_S, clust_eigen, xcell_dcv)
 
 write.csv(m_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_rna.csv', row.names = T)
 
