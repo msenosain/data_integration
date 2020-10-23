@@ -168,6 +168,8 @@ vsd_matTOP_clust <- data.frame(t(vsd_matTOP_clust))
 rownames(vsd_matTOP_clust) <- p_all$pt_ID
 
 vsd_matTOP_clust_E <- vsd_matTOP_ENSEMBL[which(vsd_matTOP_ENSEMBL$gene %in% clust_genes),]
+rownames(vsd_matTOP_clust_E) <- vsd_matTOP_clust_E$gene
+vsd_matTOP_clust_E$gene <- NULL
 vsd_matTOP_clust_E <- data.frame(t(vsd_matTOP_clust_E))
 rownames(vsd_matTOP_clust_E) <- p_all$pt_ID
 
@@ -177,6 +179,8 @@ rownames(vsd_matTOP_clust_E) <- p_all$pt_ID
 vsd_matTOP <- data.frame(t(vsd_matTOP))
 rownames(vsd_matTOP) <- p_all$pt_ID
 
+rownames(vsd_matTOP_ENSEMBL) <- vsd_matTOP_ENSEMBL$gene
+vsd_matTOP_ENSEMBL$gene <- NULL
 vsd_matTOP_ENSEMBL <- data.frame(t(vsd_matTOP_ENSEMBL))
 rownames(vsd_matTOP_ENSEMBL) <- p_all$pt_ID
 
@@ -200,14 +204,13 @@ rownames(xcell_dcv) <- p_all$pt_ID
 # WES
 ############################################################################
 # binary matrix for somatic mutations, remove genes that are mutated in less than 5% of samples
-#...
-
+mut_dt <- read.csv(file='/Users/senosam/Documents/Massion_lab/WES_summary/summary/binaryWES.csv', row.names = 1)
 
 
 ############################################################################
 # Building df for multiplex
 ############################################################################
-pt_ID <- as.character(sort(as.numeric(unique(c(rownames(sbst_exp), rownames(vsd_matTOP))))))
+pt_ID <- as.character(sort(as.numeric(unique(c(rownames(sbst_exp), rownames(vsd_matTOP), rownames(mut_dt))))))
 format_mo <- function(df, pt_ID){
     df <- df[pt_ID, ]
     rownames(df) <- pt_ID
@@ -225,9 +228,10 @@ RNA_topclust <- format_mo(vsd_matTOP_clust, pt_ID)
 RNA_topclust_E <- format_mo(vsd_matTOP_clust_E, pt_ID)
 RNA_clusteigen <- format_mo(clust_eigen, pt_ID)
 RNA_xcell <- format_mo(xcell_dcv, pt_ID)
+mut_dt <- format_mo(mut_dt, pt_ID)
 
 
-save(CyTOF_prcnt, CyTOF_exp, RNA_top12K, RNA_top12K_E, RNA_topclust, RNA_topclust_E, RNA_clusteigen, RNA_xcell, 
+save(CyTOF_prcnt, CyTOF_exp, RNA_top12K, RNA_top12K_E, RNA_topclust, RNA_topclust_E, RNA_clusteigen, RNA_xcell, mut_dt,
     file='/Users/senosam/Documents/Massion_lab/data_integration/MO_data.Rdata')
 
 
