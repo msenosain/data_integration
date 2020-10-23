@@ -1,0 +1,126 @@
+---
+title: "Summary of RF"
+author: "Mafe Senosain"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(randomForest)
+library(caret)
+library(caTools)
+library(dplyr)
+library(tidyverse)
+source("/Users/senosam/Documents/Repositories/Research/data_integration/R/52_MLtraining.R")
+```
+
+```{r, echo=FALSE}
+# Load data
+m_cytof <- read.csv('/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof.csv', 
+                    row.names = 1)
+m_rna <- read.csv('/Users/senosam/Documents/Massion_lab/data_integration/ML/m_rna.csv', 
+                  row.names = 1)
+m_cytof_rna <- read.csv('/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof_rna.csv', 
+                        row.names = 1)
+```
+
+# Preprocessing data
+```{r}
+m_cytof <- m_cytof[rownames(m_cytof_rna),]
+m_rna <- m_rna[rownames(m_cytof_rna),]
+
+# Data partition
+set.seed(25)
+trainIndx <- createDataPartition(m_cytof$SILA_S,
+                             p = 3/4, 
+                             list = FALSE)
+```
+
+
+# Model based on CyTOF data
+```{r echo=FALSE, fig.width = 5, fig.height = 3}
+rf_cytof <- TrainModel(m_cytof, trainIndx, alg = 'RF', 
+    class_col = 'SILA_S', seed = 40, allowParallel = TRUE, 
+    workers = 10, save_model = F)
+trellis.par.set(caretTheme())
+plot(rf_cytof$model_rf)
+
+# Assesing feature importance
+ftimp_gg(rf_cytof)
+
+# Model performance
+rf_cytof$rmse_test
+MAE(rf_cytof$pred_rf, rf_cytof$TestSet$SILA_S)
+```
+
+
+# Model based on RNA Seq data
+```{r echo=FALSE, fig.width = 5, fig.height = 3}
+rf_rna <- TrainModel(m_rna, trainIndx, alg = 'RF', 
+    class_col = 'SILA_S', seed = 40, allowParallel = TRUE, 
+    workers = 10, save_model = F)
+trellis.par.set(caretTheme())
+plot(rf_rna$model_rf)
+
+# Assesing feature importance
+ftimp_gg(rf_rna)
+
+# Model performance
+rf_rna$rmse_test
+MAE(rf_rna$pred_rf, rf_rna$TestSet$SILA_S)
+```
+
+
+# Model based on CyTOF and RNA Seq data
+```{r echo=FALSE, fig.width = 5, fig.height = 3}
+rf_cyrna <- TrainModel(m_cytof_rna, trainIndx, alg = 'RF', 
+    class_col = 'SILA_S', seed = 40, allowParallel = TRUE, 
+    workers = 10, save_model = F)
+trellis.par.set(caretTheme())
+plot(rf_cyrna$model_rf)
+
+# Assesing feature importance
+ftimp_gg(rf_cyrna)
+
+# Model performance
+rf_cyrna$rmse_test
+MAE(rf_cyrna$pred_rf, rf_cyrna$TestSet$SILA_S)
+```
+
+```{r echo=FALSE, fig.width = 6, fig.height = 4}
+fd_cytof <- frac_dif(rf_cytof)
+fd_rna <- frac_dif(rf_rna)
+fd_cyrna <- frac_dif(rf_cyrna)
+
+fd_df <- data.frame(fd_cytof, fd_rna, fd_cyrna)
+fd_df <- cbind(SILA=rep(rf_cyrna$TestSet$SILA_S, 3), reshape::melt(fd_df))
+
+ggplot(data=fd_df, aes(x=SILA, y=value, group=variable)) +
+  geom_line(aes(color=variable))+
+  geom_point(aes(color=variable))+
+  labs(x ="SILA score", y = "Frac. Difference (%)")
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_cytof, x = "SILA_S", y = c('FMes_174Yb_HLA.DR', 'Epi_174Yb_HLA.DR'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_rna, x = "SILA_S", y = c('C1', 'naive.B.cells'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_cytof_rna, x = "SILA_S", y = c('FMes_174Yb_HLA.DR', 'C1'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
