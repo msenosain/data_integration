@@ -30,3 +30,7 @@ for (i in 1:length(h_sym)){
 
 colnames(mut_df) <- sapply(strsplit(as.character(pt_ID), "pt"), "[[", 2)
 colnames(mut_df) <- sapply(strsplit(colnames(mut_df), "_"), "[[", 1)
+
+mut_df <- t(mut_df)
+
+write.csv(mut_df, file='/Users/senosam/Documents/Massion_lab/WES_summary/summary/binaryWES.csv')
