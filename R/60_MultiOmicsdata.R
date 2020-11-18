@@ -28,7 +28,7 @@ CDE_TMA36 <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary
 pt_ID <- as.character(sort(as.numeric(unique(c(rownames(sbst_exp), rownames(vsd_matTOP), rownames(mut_dt))))))
 
 format_mo <- function(df, pt_ID){
-    df <- df[pt_ID, ]
+    df <- data.frame(df)[pt_ID, ]
     rownames(df) <- pt_ID
     df <- t(df)
     df
@@ -43,12 +43,15 @@ RNA_topclust <- format_mo(vsd_matTOP_clust, pt_ID)
 RNA_topclust_E <- format_mo(vsd_matTOP_clust_E, pt_ID)
 RNA_clusteigen <- format_mo(clust_eigen, pt_ID)
 RNA_xcell <- format_mo(xcell_dcv, pt_ID)
+RNA_epidish <- format_mo(ed_dcv, pt_ID)
+RNA_viper25 <- format_mo(vpres_25, pt_ID)
+RNA_viper4 <- format_mo(vpres_4, pt_ID)
 mut_dt <- format_mo(mut_dt, pt_ID)
 CDE_TMA36 <- format_mo(CDE_TMA36, pt_ID) #only including those pts with cytof, rna or wes data
 
 
 save(CyTOF_prcnt, CyTOF_exp, RNA_top12K, RNA_top12K_E, RNA_topclust, 
-    RNA_topclust_E, RNA_clusteigen, RNA_xcell, mut_dt, CDE_TMA36,
+    RNA_topclust_E, RNA_clusteigen, RNA_xcell, RNA_epidish, mut_dt, CDE_TMA36,
     file='/Users/senosam/Documents/Massion_lab/data_integration/MO_data.Rdata')
 
 
