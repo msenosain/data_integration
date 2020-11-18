@@ -51,7 +51,8 @@ CDE_TMA36 <- format_mo(CDE_TMA36, pt_ID) #only including those pts with cytof, r
 
 
 save(CyTOF_prcnt, CyTOF_exp, RNA_top12K, RNA_top12K_E, RNA_topclust, 
-    RNA_topclust_E, RNA_clusteigen, RNA_xcell, RNA_epidish, mut_dt, CDE_TMA36,
+    RNA_topclust_E, RNA_clusteigen, RNA_xcell, RNA_epidish, mut_dt, 
+    RNA_viper25, RNA_viper4, CDE_TMA36,
     file='/Users/senosam/Documents/Massion_lab/data_integration/MO_data.Rdata')
 
 
