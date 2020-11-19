@@ -75,5 +75,5 @@ MOFA_m_e4 <- MOFA_model(mofa_data4)
 
 
 save(MOFA_m_x25, MOFA_m_e25, MOFA_m_x4, MOFA_m_e4, 
-    file='/Users/senosam/Documents/Massion_lab/data_integration/MOFA_model.RData)
+    file='/Users/senosam/Documents/Massion_lab/data_integration/MOFA_model.RData')
 
