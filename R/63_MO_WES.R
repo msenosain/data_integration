@@ -50,14 +50,14 @@ mut_dt <- t(mut_dt)
 library(dplyr)
 library(tidyr)
 prcnt <- 0.1 # cutoff: genes must be mutated in prcnt*100 % of the samples
-mut_dt_sum <- as_tibble(mut_dt) %>% 
+mut_dt_sum <- data.frame(t(mut_dt)) %>% 
   mutate(sum = rowSums(., na.rm = TRUE), 
-         genes = rownames(mut_dt)) %>%
+         genes = rownames(.)) %>%
   arrange(., desc(sum)) %>%
   select(genes, sum) %>%
   filter(., sum > nrow(mut_dt)*prcnt)
 
-mut_dt <- mut_dt[mut_dt_sum$genes,]
+mut_dt <- mut_dt[,mut_dt_sum$genes]
 
 save(mut_dt,
     file='/Users/senosam/Documents/Massion_lab/data_integration/WES_data.Rdata')
