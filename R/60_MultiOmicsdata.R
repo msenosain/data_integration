@@ -3,14 +3,14 @@
 ############################################################################
 load('/Users/senosam/Documents/Massion_lab/data_integration/CyTOF_data.Rdata')
 e <- c(15,22,25,33,36,38,41,52,56,61,64,68,80,83,94,103,106,111,124,127,131)
-sbst_exp <- sbst_exp[-e,]
+sbst_exp <- sbst_exp[,-e]
 
 ############################################################################
 # RNA
 ############################################################################
 load('/Users/senosam/Documents/Massion_lab/data_integration/RNA_data.Rdata')
-rownames(vsd_matTOP_clust_E) <- sapply(strsplit(rownames(vsd_matTOP_clust_E), "\\."), "[[", 1)
-rownames(vsd_matTOP_ENSEMBL) <- sapply(strsplit(rownames(vsd_matTOP_ENSEMBL), "\\."), "[[", 1)
+colnames(vsd_matTOP_clust_E) <- sapply(strsplit(colnames(vsd_matTOP_clust_E), "\\."), "[[", 1)
+colnames(vsd_matTOP_ENSEMBL) <- sapply(strsplit(colnames(vsd_matTOP_ENSEMBL), "\\."), "[[", 1)
 
 ############################################################################
 # WES
