@@ -40,6 +40,10 @@ mofa_data4 <- list('CyTOF_exp'   = CyTOF_exp,
                   'RNA_viper4' = RNA_viper4,
                   'mutation'    = mut_dt)
 
+mofa_simp <- list('CyTOF_exp'   = CyTOF_exp, 
+                  'RNA_topgenes'= RNA_top12K_E, 
+                  'mutation'    = mut_dt)
+
 
 MOFA_model <- function(mofa_data){
     set.seed(1234)
@@ -70,6 +74,7 @@ MOFA_m_x25 <- MOFA_model(mofa_data1)
 MOFA_m_e25 <- MOFA_model(mofa_data2)
 MOFA_m_x4 <- MOFA_model(mofa_data3)
 MOFA_m_e4 <- MOFA_model(mofa_data4)
+MOFA_simple <- MOFA_model(mofa_simp)
 
 
 
