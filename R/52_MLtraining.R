@@ -26,7 +26,7 @@ TrainModel <- function(data, trainIndx, alg = c('RF', 'XGB'),
         message('Running Random Forest')
         # Initiating parallelization
         if(allowParallel){
-        cluster <- parallel::makeCluster(workers) 
+        cluster <- parallel::makeCluster(workers, setup_strategy = "sequential") 
         doParallel::registerDoParallel(cluster)
         }
         # Computing training control parameters
