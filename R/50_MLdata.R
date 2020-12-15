@@ -185,6 +185,17 @@ rownames(xcell_dcv) <- p_all$pt_ID
 
 
 ############################################################################
+# RADIOMICS - HEALTHMYNE
+############################################################################
+m_HM <- read.csv('/Users/senosam/Documents/Massion_lab/radiomics_summary/TMA36_HM.csv')
+rownames(m_HM) <- m_HM[,1]
+m_HM <- m_HM[-which(is.na(m_HM[,2])),]
+m_HM <- m_HM[,15:ncol(m_HM)]
+nona <- colnames(m_HM)[apply(m_HM, 2, anyNA)]
+m_HM <- m_HM[,-which(colnames(m_HM) %in% nona)]
+
+
+############################################################################
 # Building df for models
 ############################################################################
 y <- read.csv('/Users/senosam/Documents/Massion_lab/radiomics_summary/TMA36_CANARY_khushbu.csv')
@@ -228,6 +239,16 @@ write.csv(m_cytof_rna, '/Users/senosam/Documents/Massion_lab/data_integration/ML
 
 
 #---------------------------------------------------------------------------
-# M1: CYTOF & RNA & MUTATION
+# M5: CYTOF & RNA & MUTATION
 #---------------------------------------------------------------------------
 #...
+
+
+#---------------------------------------------------------------------------
+# M6: RADIOMICS
+#---------------------------------------------------------------------------
+m_HM <- na.omit(m_HM[match(y$pt_ID, rownames(m_HM)),])
+y_HM <- y[which(y$pt_ID %in% rownames(m_HM)),]
+m_HM <- cbind('SILA_S'=y_HM$SILA_S, m_HM)
+
+write.csv(m_HM, '/Users/senosam/Documents/Massion_lab/data_integration/ML/m_HM.csv', row.names = T)
