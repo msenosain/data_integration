@@ -15,6 +15,7 @@ library(caTools)
 library(dplyr)
 library(tidyverse)
 source("/Users/senosam/Documents/Repositories/Research/data_integration/R/52_MLtraining.R")
+source("/Users/senosam/Documents/Repositories/Research/data_analysis_cytof/R/20_ClustAnnot_functions.R")
 ```
 
 ```{r, echo=FALSE}
@@ -25,6 +26,7 @@ m_rna <- read.csv('/Users/senosam/Documents/Massion_lab/data_integration/ML/m_rn
                   row.names = 1)
 m_cytof_rna <- read.csv('/Users/senosam/Documents/Massion_lab/data_integration/ML/m_cytof_rna.csv', 
                         row.names = 1)
+m_HM <- read.csv('/Users/senosam/Documents/Massion_lab/data_integration/ML/m_HM.csv', row.names = 1)
 ```
 
 # Preprocessing data
@@ -123,4 +125,84 @@ ggpubr::ggscatter(m_cytof_rna, x = "SILA_S", y = c('FMes_174Yb_HLA.DR', 'C1'),
           add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
           cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
           xlab = "SILA Score", ylab = '')
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_cytof_rna, x = "SILA_S", y = c('Epi_174Yb_HLA.DR', 'FMes_174Yb_HLA.DR', 'Endo_174Yb_HLA.DR'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_cytof_rna, x = "SILA_S", y = c('Th_cells', 'Tc_cells', 'Myeloid'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_cytof_rna, x = "SILA_S", y = c('C0', 'C1'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_cytof_rna, x = "SILA_S", y = c('C2', 'C3'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
+
+```{r echo=FALSE, fig.width = 8, fig.height = 3}
+ggpubr::ggscatter(m_cytof_rna, x = "SILA_S", y = c('Epithelial_8', 'Epithelial_9', 'Epithelial_10'),
+          add = "reg.line", conf.int = TRUE, combine = TRUE, scales='free',
+          cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+          xlab = "SILA Score", ylab = '')
+```
+
+
+
+# Model based on HealthMyne data
+```{r}
+# Data partition
+set.seed(25)
+trainIndx <- createDataPartition(m_HM$SILA_S,
+                             p = 3/4, 
+                             list = FALSE)
+
+rf_HM <- TrainModel(m_HM, trainIndx, alg = 'RF', 
+    class_col = 'SILA_S', seed = 40, allowParallel = TRUE, 
+    workers = 10, save_model = F)
+trellis.par.set(caretTheme())
+plot(rf_HM$model_rf)
+
+# Assesing feature importance
+ftimp_gg(rf_HM, n_topft = 20)
+
+# Model performance
+rf_HM$rmse_test
+MAE(rf_HM$pred_rf, rf_HM$TestSet$SILA_S)
+
+```
+
+## FRACTIONAL DIF
+
+```{r}
+fd_df <- data.frame(cbind(SILA=rf_HM$TestSet$SILA_S, value = frac_dif(rf_HM)))
+
+ggplot(data=fd_df, aes(x=SILA, y=value)) +
+  geom_line()+
+  geom_point()+
+  labs(x ="SILA score", y = "Frac. Difference (%)")
+```
+
+
+```{r echo=FALSE, fig.width = 12, fig.height = 10}
+x <- ftimp_gg(rf_HM, n_topft = 20)
+x$data$Features
+
+corr_plot(m_HM[, c('SILA_S', x$data$Features)])
+
 ```

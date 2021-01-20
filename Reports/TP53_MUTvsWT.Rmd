@@ -1,0 +1,252 @@
+---
+title: "MOFA"
+author: "Mafe Senosain"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+source('/Users/senosam/Documents/Repositories/Research/data_analysis_rnaseq/R/30_DEGanalysis.R')
+environment_set()
+```
+
+
+# Load data
+```{r, echo=FALSE}
+# Bio data
+load('/Users/senosam/Documents/Massion_lab/data_integration/MO_data.Rdata')
+mut_dt <- t(mut_dt)
+k <- rownames(mut_dt)[-which(is.na(mut_dt[,1]))] # select pts with mut data only
+CyTOF_exp <- data.frame(t(CyTOF_exp)[k,])
+CyTOF_prcnt <- t(CyTOF_prcnt)[k,]
+RNA_top12K_E <- t(RNA_top12K_E)[k,]
+RNA_xcell <- t(RNA_xcell)[k,]
+mut_dt <- mut_dt[k,]
+
+# CDE
+CDE_TMA36 <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2020FEB25_SA.csv')
+rownames(CDE_TMA36) <- CDE_TMA36$pt_ID
+CDE_TMA36 <- CDE_TMA36[k,]
+
+cl <- data.frame(cbind('pt_ID'=CDE_TMA36$pt_ID, 'TP_53'=mut_dt[,'TP53']))
+```
+
+```{r}
+# RNA SEQ DATA
+load("/Users/senosam/Documents/Massion_lab/RNASeq_summary/rnaseq.RData")
+ls_preprocessed <- preprocess_rna(path_rnaseq = '/Users/senosam/Documents/Massion_lab/RNASeq_summary/rnaseq.RData', correct_batch = T, correct_gender = T)
+p_all <- p_all[which(p_all$Vantage_ID %in% colnames(ls_preprocessed$vsd_mat)),]
+p_all <- na.omit(p_all[match(k, p_all$pt_ID),])
+rna_all <- ls_preprocessed$rna_all[,c(1:7,na.omit(match(p_all$Vantage_ID, colnames(ls_preprocessed$rna_all)[8:ncol(ls_preprocessed$rna_all)])))]
+
+pData_rnaseq <- ls_preprocessed$pData_rnaseq[na.omit(match(p_all$pt_ID, ls_preprocessed$pData_rnaseq$pt_ID)),]
+counts_all <- ls_preprocessed$counts_all[,na.omit(match(p_all$Vantage_ID, colnames(ls_preprocessed$counts_all)))]
+vsd_mat <- ls_preprocessed$vsd_mat[,na.omit(match(p_all$Vantage_ID, colnames(ls_preprocessed$vsd_mat)))]
+ls_preprocessed2 <- list(p_all=na.omit(p_all), 
+                         rna_all=rna_all, 
+                         pData_rnaseq=pData_rnaseq, 
+                         counts_all=counts_all, 
+                         vsd_mat=vsd_mat)
+
+p_all_cl <- ls_preprocessed2$p_all
+cl2 <- data.frame(cl[match(p_all$pt_ID, cl$pt_ID),])
+cl2$pt_ID <- as.character(cl2$pt_ID)
+p_all_cl <- p_all_cl %>% 
+              inner_join(., cl2, "pt_ID") %>%
+              mutate_all(as.character)
+p_all_cl['Gender'] <- ls_preprocessed2$pData_rnaseq$Gender
+```
+
+
+# Compare CyTOF cell types
+```{r}
+x <- data.frame(CyTOF_prcnt)
+x['TP_53'] <- as.factor(cl$TP_53)
+x <- na.omit(x)
+x <- reshape2::melt(x,  id.vars = c('TP_53'))
+
+violin_deconv <- function(x, ct) {
+  x_sub <- x[which(x$variable == ct),]
+  dp <- ggplot(x_sub, aes(x=TP_53, y=value, fill=TP_53)) + 
+    geom_violin(trim=FALSE) +
+    geom_boxplot(width=0.1, fill="white") +
+    labs(title=paste0(ct, " - CyTOF"),x="pt group", y = "cell %") +
+    scale_fill_brewer(palette="Dark2") + theme_minimal() +
+    ggsignif::geom_signif(comparisons = list(c("0", "1")),   
+                map_signif_level=TRUE)
+  dp
+}
+
+xcell_ct <- colnames(CyTOF_prcnt)
+for (i in xcell_ct){
+  plot(violin_deconv(x, ct = i))
+}
+```
+
+# Compare xCell cell types
+```{r}
+x <- data.frame(RNA_xcell)
+x['TP_53'] <- as.factor(cl$TP_53)
+x <- na.omit(x)
+x <- reshape2::melt(x,  id.vars = c('TP_53'))
+
+violin_deconv <- function(x, ct) {
+  x_sub <- x[which(x$variable == ct),]
+  dp <- ggplot(x_sub, aes(x=TP_53, y=value, fill=TP_53)) + 
+    geom_violin(trim=FALSE) +
+    geom_boxplot(width=0.1, fill="white") +
+    labs(title=paste0(ct, " - XCell deconvolution"),x="pt group", y = "Enrichment score") +
+    scale_fill_brewer(palette="Dark2") + theme_minimal() +
+    ggsignif::geom_signif(comparisons = list(c("0", "1")),   
+                map_signif_level=TRUE)
+  dp
+}
+
+xcell_ct <- colnames(RNA_xcell)
+for (i in xcell_ct){
+  plot(violin_deconv(x, ct = i))
+}
+```
+
+# Compare SILA score
+```{r}
+x_sila <- data.frame(cbind('TP_53' = cl$TP_53, 'SILA' = CDE_TMA36$SILA))
+x_sila$TP_53 <- as.factor(x_sila$TP_53)
+x_sila <- reshape2::melt(x_sila,  id.vars = c('TP_53'))
+x_sila$TP_53 <- as.factor(x_sila$TP_53)
+
+ggplot(x_sila, aes(x=TP_53, y=value, fill=TP_53)) + 
+    geom_violin(trim=FALSE) +
+    geom_boxplot(width=0.1, fill="white") +
+    labs(title=paste0("SILA score"),x="pt group", y = "SILA score") +
+    scale_fill_brewer(palette="Dark2") + theme_minimal() +
+    ggsignif::geom_signif(comparisons = list(c("0", "1")),   
+                map_signif_level=TRUE)
+```
+
+# Compare HLA-DR expression
+
+## In ECC (CyTOF)
+```{r}
+x <- data.frame(cbind('TP_53' = cl$TP_53, 'HLA-DR' = CyTOF_exp$Epi_174Yb_HLA.DR))
+x$TP_53 <- as.factor(x$TP_53)
+x <- reshape2::melt(x,  id.vars = c('TP_53'))
+x$TP_53 <- as.factor(x$TP_53)
+
+ggplot(x, aes(x=TP_53, y=value, fill=TP_53)) + 
+    geom_violin(trim=FALSE) +
+    geom_boxplot(width=0.1, fill="white") +
+    labs(title=paste0("HLA-DR expression in ECC"),x="pt group", y = "HLA-DR expression") +
+    scale_fill_brewer(palette="Dark2") + theme_minimal() +
+    ggsignif::geom_signif(comparisons = list(c("0", "1")),   
+                map_signif_level=TRUE)
+```
+
+## In Myeloid cells (CyTOF)
+```{r}
+x <- data.frame(cbind('TP_53' = cl$TP_53, 'HLA-DR' = CyTOF_exp$Mye_174Yb_HLA.DR))
+x$TP_53 <- as.factor(x$TP_53)
+x <- reshape2::melt(x,  id.vars = c('TP_53'))
+x$TP_53 <- as.factor(x$TP_53)
+
+ggplot(x, aes(x=TP_53, y=value, fill=TP_53)) + 
+    geom_violin(trim=FALSE) +
+    geom_boxplot(width=0.1, fill="white") +
+    labs(title=paste0("HLA-DR expression in Myeloid cells"),x="pt group", y = "HLA-DR expression") +
+    scale_fill_brewer(palette="Dark2") + theme_minimal() +
+    ggsignif::geom_signif(comparisons = list(c("0", "1")),   
+                map_signif_level=TRUE)
+```
+
+## In Mesenchymal cells (CyTOF)
+```{r}
+x <- data.frame(cbind('TP_53' = cl$TP_53, 'HLA-DR' = CyTOF_exp$FMes_174Yb_HLA.DR))
+x$TP_53 <- as.factor(x$TP_53)
+x <- reshape2::melt(x,  id.vars = c('TP_53'))
+x$TP_53 <- as.factor(x$TP_53)
+
+ggplot(x, aes(x=TP_53, y=value, fill=TP_53)) + 
+    geom_violin(trim=FALSE) +
+    geom_boxplot(width=0.1, fill="white") +
+    labs(title=paste0("HLA-DR expression in FMes"),x="pt group", y = "HLA-DR expression") +
+    scale_fill_brewer(palette="Dark2") + theme_minimal() +
+    ggsignif::geom_signif(comparisons = list(c("0", "1")),   
+                map_signif_level=TRUE)
+```
+
+## In RNA Seq (main genes)
+```{r}
+hladr_a <- 'ENSG00000204287'
+hladr_b1 <- 'ENSG00000196126'
+col11a <- 'ENSG00000060718'
+
+HLA_mut <- cbind('TP_53' = cl$TP_53, 
+               'HLADR_A' = RNA_top12K_E[,grep(hladr_a, colnames(RNA_top12K_E))], 
+               'HLADR_B1' = RNA_top12K_E[,grep(hladr_b1, colnames(RNA_top12K_E))],
+               'COL11A1' = RNA_top12K_E[,grep(col11a, colnames(RNA_top12K_E))])
+HLA_mut <- data.frame(na.omit(HLA_mut))
+HLA_mut <- reshape2::melt(HLA_mut,  id.vars = c('TP_53'))
+HLA_mut$TP_53 <- as.factor(HLA_mut$TP_53) 
+HLA_mut$value <- as.numeric(HLA_mut$value)
+
+violin_clust <- function(x, ct) {
+  x_sub <- x[which(x$variable == ct),]
+  dp <- ggplot(x_sub, aes(x=TP_53, y=value, fill=TP_53)) + 
+    geom_violin(trim=FALSE) +
+    geom_boxplot(width=0.1, fill="white") +
+    labs(title=paste0(ct, " gene expression"),x="", y = "VST") +
+    scale_fill_brewer(palette="Dark2") + theme_minimal() +
+    ggsignif::geom_signif(comparisons = list(c("0", "1")),   
+                map_signif_level=TRUE)
+  dp
+}
+
+gene <- unique(HLA_mut$variable)
+for (i in gene){
+  plot(violin_clust(HLA_mut, ct = i))
+}
+```
+
+# DEG
+
+```{r}
+DE_res_1v2 <- DE_analysis(ls_preprocessed2, 
+           GeneBased=FALSE, 
+           pDataBased=FALSE,
+           NewCondition=TRUE,
+           NewCondition_df = p_all_cl,
+           cond_nm='TP_53',
+           two_levels=c('0','1'),
+           reference = '0',
+           correct_gender=TRUE)
+```
+
+```{r}
+heatmap_200(DE_res_1v2$res_df, DE_res_1v2$vsd_mat_sym, DE_res_1v2$meta_data, DE_res_1v2$pData_rnaseq)
+volcano_plot(DE_res_1v2$res_df, gene=NULL, p_title='TP53: WT vs Mut')
+```
+
+```{r}
+fgsea_res_1v2 <- fgsea_analysis(DE_res_1v2)
+```
+
+```{r}
+fgsea_res <- fgsea_res_1v2
+cond_nm <- 'TP53: WT vs Mut'
+fgsea_plot(fgsea_res$res_hm, pathways_title='Hallmark', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_c1, pathways_title='C1 positional genes', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_c2, pathways_title='C2 curated genes', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_c3, pathways_title='C3 regulatory target genes', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_c4, pathways_title='C4 cancer', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_c5, pathways_title='C5 GO genes', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_c6, pathways_title='C6 oncogenic', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_c7, pathways_title='C7 immunologic', condition_name= cond_nm)
+fgsea_plot(fgsea_res$res_msg, pathways_title='All signatures', condition_name= cond_nm)
+
+```

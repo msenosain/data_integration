@@ -1,0 +1,222 @@
+---
+title: "Summary of TMA36 cohort: clinical characteristics"
+author: "Mafe Senosain"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(RColorBrewer)
+library(gridExtra)
+library(reshape2)
+library(jcolors)
+library(ComplexHeatmap)
+library(dplyr)
+library(tidyr)
+library(ggrepel)
+library(forcats)
+library(ggsignif)
+library(ggpubr)
+knitr::opts_chunk$set(echo = FALSE)
+source("/Users/senosam/Documents/Repositories/Research/data_analysis_cytof/R/20_ClustAnnot_functions.R")
+source("/Users/senosam/Documents/Repositories/Research/data_analysis_cytof/R/30_DA_functions.R")
+source("/Users/senosam/Documents/Repositories/Research/data_analysis_cytof/R/40_DE_functions.R")
+```
+
+```{r, echo=FALSE}
+# read edited CSV file as CDE_TMA36
+CDE <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2021JAN13_SA.csv')
+```
+
+```{r, echo=FALSE}
+pie_chart <- function(dt, col_name, plot_title){
+    x <- data.frame(table(dt[col_name]))
+    colnames(x) <- c('Group', 'value')
+    x <- x %>% 
+        arrange(desc(value)) #%>%
+        #mutate(prop = label_percent(value / sum(value)))
+
+    print(ggplot(x, aes(x = "", y = value, fill = fct_inorder(Group))) +
+        geom_bar(width = 1, stat = "identity") +
+        coord_polar("y", start = 0) +
+        geom_label_repel(aes(label = value), size=5, show.legend = F, nudge_x = 1) +
+        #geom_label_repel(aes(label = prop), size=5, show.legend = F, nudge_x = 1) + #%
+        guides(fill = guide_legend(title = "Group")) +
+        labs(title=plot_title) +
+        theme(plot.title = element_text(hjust = 0.5, size=22)))
+}
+
+```
+
+# Clinical characteristics distributions on TMA36 cohort
+```{r, echo=FALSE}
+hist(CDE$SILA, xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
+pie_chart(CDE, 'CANARY', 'CANARY')
+pie_chart(CDE, 'Stages_simplified', 'Stage')
+pie_chart(CDE, 'Hist_predominant', 'Histology')
+pie_chart(CDE, 'Death_st', 'Death Status')
+pie_chart(CDE, 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE, 'Progression_st', 'Progression Status')
+pie_chart(CDE, 'Smoking_Status', 'Smoking Status')
+```
+
+# Clinical characteristics distributions by CANARY
+
+## Good prognosis (Indolent)
+```{r, echo=FALSE}
+k <- which(CDE$CANARY == 'G')
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+pie_chart(CDE[k,], 'Smoking_Status', 'Smoking Status')
+
+```
+
+## Intermediate prognosis
+```{r, echo=FALSE}
+k <- which(CDE$CANARY == 'I')
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+pie_chart(CDE[k,], 'Smoking_Status', 'Smoking Status')
+```
+
+## Poor prognosis (Aggressive)
+```{r, echo=FALSE}
+k <- which(CDE$CANARY == 'P')
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+pie_chart(CDE[k,], 'Smoking_Status', 'Smoking Status')
+```
+
+# Clinical characteristics distributions by SILA Score
+
+```{r, echo=FALSE}
+#http://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/76-add-p-values-and-significance-levels-to-ggplots/
+bp_f <- function(dt, chr_colnm, sila_colnm='SILA', main_title, x_title) {
+  dt <- dt[,c(sila_colnm,chr_colnm)]
+  dt <- melt(dt)
+  colnames(dt)[1]<- 'condition'
+  
+  x <- compare_means(value ~ condition, dt, method = "wilcox.test", paired = FALSE,
+                     group.by = NULL, ref.group = NULL)
+  idx <- which(x$p.signif != 'ns')
+  ls <- list()
+  n=1
+  for (i in idx) {
+    ls[[n]] <- c(x$group1[idx[n]], x$group2[idx[n]])
+    n=n+1
+  }
+  #print(data.frame(x))
+  
+  p <- ggplot(dt, aes(x=condition, y=value, fill=condition)) +
+    geom_boxplot() +
+    labs(title=main_title,x=x_title, y = "SILA score") +
+    theme(plot.title = element_text(hjust = 0.5, size=20)) +
+    ggsignif::geom_signif(comparisons = ls, 
+       map_signif_level=TRUE)
+    geom_signif(comparisons = ls, 
+              map_signif_level=TRUE)
+  return(p)
+}
+
+bp_f(CDE, chr_colnm='CANARY', sila_colnm='SILA', main_title='SILA score by CANARY', x_title='CANARY')
+bp_f(CDE, chr_colnm='Stages_simplified', sila_colnm='SILA', main_title='SILA score by Stage', x_title='Tumor Stage')
+bp_f(CDE, chr_colnm='Hist_predominant', sila_colnm='SILA', main_title='SILA score by Histology', x_title='Predominant Histology')
+bp_f(CDE, chr_colnm='Death_st', sila_colnm='SILA', main_title='SILA score by Death Status', x_title='Death Status')
+bp_f(CDE, chr_colnm='Recurrence_st', sila_colnm='SILA', main_title='SILA score by Recurrence Status', x_title='Recurrence Status')
+bp_f(CDE, chr_colnm='Progression_st', sila_colnm='SILA', main_title='SILA score by Progression Status', x_title='Progression Status')
+bp_f(CDE, chr_colnm='Smoking_Status', sila_colnm='SILA', main_title='SILA score by Smoking Status', x_title='Smoking Status')
+
+
+```
+
+
+# New classification 
+
+```{r, echo=FALSE}
+ind <- CDE[which(CDE$SILA <= 0.5),]
+agg <- CDE[which(CDE$SILA > 0.5),]
+```
+
+## Indolent as SILA < 0.5
+```{r, echo=FALSE}
+k <- which(CDE$SILA < 0.5)
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+
+ind[which(ind$Stages_simplified == 'Stage II'),'SILA']
+```
+
+```{r, echo=FALSE}
+ind <- CDE[which(CDE$SILA <= 0.5),]
+
+print('STAGE 0: ')
+sort(ind[which(ind$Stages_simplified == 'Stage 0'),'SILA'])
+
+print('STAGE I: ')
+sort(ind[which(ind$Stages_simplified == 'Stage I'),'SILA'])
+
+print('STAGE II: ')
+sort(ind[which(ind$Stages_simplified == 'Stage II'),'SILA'])
+
+print('STAGE III: ') 
+sort(ind[which(ind$Stages_simplified == 'Stage III'),'SILA'])
+
+print('STAGE IV: ') 
+sort(ind[which(ind$Stages_simplified == 'Stage IV'),'SILA'])
+```
+
+## AGGRESSIVE as SILA >= 0.5
+```{r, echo=FALSE}
+k <- which(CDE$SILA >= 0.5)
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+```
+```{r, echo=FALSE}
+agg <- CDE[which(CDE$SILA > 0.5),]
+
+print('STAGE 0: ')
+sort(agg[which(agg$Stages_simplified == 'Stage 0'),'SILA'])
+
+print('STAGE I: ')
+sort(agg[which(agg$Stages_simplified == 'Stage I'),'SILA'])
+
+print('STAGE II: ')
+sort(agg[which(agg$Stages_simplified == 'Stage II'),'SILA'])
+
+print('STAGE III: ') 
+sort(agg[which(agg$Stages_simplified == 'Stage III'),'SILA'])
+
+print('STAGE IV: ') 
+sort(agg[which(agg$Stages_simplified == 'Stage IV'),'SILA'])
+```
+
+
+```{r, echo=FALSE}
+
+```

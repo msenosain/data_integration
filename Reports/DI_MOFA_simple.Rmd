@@ -1,0 +1,1102 @@
+---
+title: "MOFA"
+author: "Mafe Senosain"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(MOFA)
+library(MOFAdata)
+library(reticulate)
+use_python("/Users/senosam/opt/anaconda3/bin/python", required=TRUE) 
+```
+
+
+# Load MOFA models
+```{r, echo=FALSE}
+load('/Users/senosam/Documents/Massion_lab/data_integration/MOFA_model_simple.RData')
+load('/Users/senosam/Documents/Massion_lab/data_integration/MOFA_model_simpleRAD.RData')
+```
+
+
+## MOFA model SIMPLE 
+```{r}
+plotDataOverview(MOFA_simple)
+```
+
+### Analyze trained MOFA model
+```{r}
+# Calculate the variance explained (R2) per factor in each view 
+r2 <- calculateVarianceExplained(MOFA_simple)
+r2$R2Total
+# Variance explained by each factor in each view
+head(r2$R2PerFactor)
+# Plot it
+plotVarianceExplained(MOFA_simple)
+```
+
+### Characterization of individual factors
+
+
+#### CyTOF expression
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple, 
+  view = "CyTOF_exp", 
+  factors = 1:5,
+  show_colnames = FALSE, main = 'CyTOF_exp'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple, 
+  view="CyTOF_exp", 
+  factor=2
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple, 
+  view="CyTOF_exp", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple, 
+  view="CyTOF_exp", 
+  factor=5
+)
+```
+
+#### RNA Seq Top genes
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple, 
+  view = "RNA_topgenes", 
+  factors = 1:5,
+  show_colnames = FALSE, main = 'RNA_topgenes'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple, 
+  view="RNA_topgenes", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple, 
+  view="RNA_topgenes", 
+  factor=2
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple, 
+  view="RNA_topgenes", 
+  factor=3
+)
+```
+
+#### WES
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple, 
+  view = "mutation", 
+  factors = 1:5,
+  show_colnames = F, main = 'Mutation Data'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple, 
+  view="mutation", 
+  factor=1
+)
+```
+
+
+### Feature set enrichment analysis in the active views
+```{r}
+# Load reactome annotations
+data("reactomeGS") # binary matrix with feature sets in rows and features in columns
+
+# perform enrichment analysis
+gsea <- runEnrichmentAnalysis(
+  MOFA_simple,
+  view = "RNA_topgenes",
+  feature.sets = reactomeGS,
+  alpha = 0.01
+)
+```
+
+```{r}
+plotEnrichmentBars(gsea, alpha=0.01)
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 1:2
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 3:4
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 5:6
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "TP53"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "KRAS"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "EGFR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "Mye_174Yb_HLA.DR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "Tc_154Sm_CD45"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "Tc_168Er_CD8"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "Epi_174Yb_HLA.DR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple,
+  factors = c(1:5),
+  color_by = "FMes_174Yb_HLA.DR"
+)
+```
+
+
+
+## MOFA model SIMPLE 2
+```{r}
+plotDataOverview(MOFA_simple2)
+```
+
+### Analyze trained MOFA model
+```{r}
+# Calculate the variance explained (R2) per factor in each view 
+r2 <- calculateVarianceExplained(MOFA_simple2)
+r2$R2Total
+# Variance explained by each factor in each view
+head(r2$R2PerFactor)
+# Plot it
+plotVarianceExplained(MOFA_simple2)
+```
+
+### Characterization of individual factors
+
+
+#### CyTOF percentage
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple2, 
+  view = "CyTOF_prcnt", 
+  factors = 1:6,
+  show_colnames = FALSE, main = 'CyTOF_prcnt'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="CyTOF_prcnt", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="CyTOF_prcnt", 
+  factor=3
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="CyTOF_prcnt", 
+  factor=6
+)
+```
+
+#### RNA Seq Top genes
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple2, 
+  view = "RNA_topgenes", 
+  factors = 1:6,
+  show_colnames = FALSE, main = 'RNA_topgenes'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="RNA_topgenes", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="RNA_topgenes", 
+  factor=2
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="RNA_topgenes", 
+  factor=3
+)
+```
+
+#### WES
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple2, 
+  view = "mutation", 
+  factors = 1:6,
+  show_colnames = F, main = 'Mutation Data'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="mutation", 
+  factor=1
+)
+```
+
+
+### Feature set enrichment analysis in the active views
+```{r}
+# Load reactome annotations
+data("reactomeGS") # binary matrix with feature sets in rows and features in columns
+
+# perform enrichment analysis
+gsea <- runEnrichmentAnalysis(
+  MOFA_simple2,
+  view = "RNA_topgenes",
+  feature.sets = reactomeGS,
+  alpha = 0.01
+)
+```
+
+```{r}
+plotEnrichmentBars(gsea, alpha=0.01)
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 1:2
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple2,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 3:4
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple2,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 5:6
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple2,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+
+
+```{r}
+plotFactorScatters(
+  MOFA_simple2,
+  factors = c(1:5),
+  color_by = "TP53"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple2,
+  factors = c(1:5),
+  color_by = "KRAS"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple2,
+  factors = c(1:5),
+  color_by = "EGFR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple2,
+  factors = c(1:5),
+  color_by = "Epithelial_10"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple2,
+  factors = c(1:5),
+  color_by = "Epithelial_1"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple2,
+  factors = c(1:5),
+  color_by = "Endothelial"
+)
+```
+
+
+```{r}
+plotFactorScatters(
+  MOFA_simple2,
+  factors = c(1:5),
+  color_by = "Endothelial"
+)
+```
+
+```{r}
+plotFactorScatter(
+  MOFA_simple2,
+  factors = 1:2, dot_size = 3,
+  color_by = "TP53",      # color by the IGHV values that are part of the training data
+)
+```
+
+```{r}
+plotFactorScatter(
+  MOFA_simple2,
+  factors = 1:2, dot_size = 3,
+  color_by = "ENSG00000060718",
+  name_color = 'COL11A1'
+)
+```
+
+
+```{r}
+plotFactorScatter(
+  MOFA_simple2,
+  factors = 1:2, dot_size = 3,
+  color_by = "Epithelial_1",     
+)
+```
+
+## MOFA model SIMPLE 3
+```{r}
+plotDataOverview(MOFA_simple3)
+```
+
+### Analyze trained MOFA model
+```{r}
+# Calculate the variance explained (R2) per factor in each view 
+r2 <- calculateVarianceExplained(MOFA_simple3)
+r2$R2Total
+# Variance explained by each factor in each view
+head(r2$R2PerFactor)
+# Plot it
+plotVarianceExplained(MOFA_simple3)
+```
+
+### Characterization of individual factors
+
+
+#### CyTOF expression
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple3, 
+  view = "CyTOF_exp", 
+  factors = 1:5,
+  show_colnames = FALSE, main = 'CyTOF_exp'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple3, 
+  view="CyTOF_exp", 
+  factor=2
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple3, 
+  view="CyTOF_exp", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple3, 
+  view="CyTOF_exp", 
+  factor=5
+)
+```
+
+#### CyTOF percentage
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple2, 
+  view = "CyTOF_prcnt", 
+  factors = 1:6,
+  show_colnames = FALSE, main = 'CyTOF_prcnt'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="CyTOF_prcnt", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="CyTOF_prcnt", 
+  factor=3
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple2, 
+  view="CyTOF_prcnt", 
+  factor=6
+)
+```
+
+#### RNA Seq Top genes
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple3, 
+  view = "RNA_topgenes", 
+  factors = 1:5,
+  show_colnames = FALSE, main = 'RNA_topgenes'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple3, 
+  view="RNA_topgenes", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple3, 
+  view="RNA_topgenes", 
+  factor=2
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple3, 
+  view="RNA_topgenes", 
+  factor=3
+)
+```
+
+#### WES
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple3, 
+  view = "mutation", 
+  factors = 1:5,
+  show_colnames = F, main = 'Mutation Data'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple3, 
+  view="mutation", 
+  factor=1
+)
+```
+
+
+### Feature set enrichment analysis in the active views
+```{r}
+# Load reactome annotations
+data("reactomeGS") # binary matrix with feature sets in rows and features in columns
+
+# perform enrichment analysis
+gsea <- runEnrichmentAnalysis(
+  MOFA_simple3,
+  view = "RNA_topgenes",
+  feature.sets = reactomeGS,
+  alpha = 0.01
+)
+```
+
+```{r}
+plotEnrichmentBars(gsea, alpha=0.01)
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 1:2
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple3,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 3:4
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple3,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 5:6
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple3,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "TP53"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "KRAS"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "EGFR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "Mye_174Yb_HLA.DR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "Tc_154Sm_CD45"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "Tc_168Er_CD8"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "Epi_174Yb_HLA.DR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple3,
+  factors = c(1:5),
+  color_by = "FMes_174Yb_HLA.DR"
+)
+```
+
+## MOFA model SIMPLE 4 (+ radiomics)
+```{r}
+plotDataOverview(MOFA_simple4)
+```
+
+### Analyze trained MOFA model
+```{r}
+# Calculate the variance explained (R2) per factor in each view 
+r2 <- calculateVarianceExplained(MOFA_simple4)
+r2$R2Total
+# Variance explained by each factor in each view
+head(r2$R2PerFactor)
+# Plot it
+plotVarianceExplained(MOFA_simple4)
+```
+
+### Characterization of individual factors
+
+
+#### CyTOF percentage
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple4, 
+  view = "CyTOF_prcnt", 
+  factors = 1:6,
+  show_colnames = FALSE, main = 'CyTOF_prcnt'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="CyTOF_prcnt", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="CyTOF_prcnt", 
+  factor=3
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="CyTOF_prcnt", 
+  factor=6
+)
+```
+
+#### RNA Seq Top genes
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple4, 
+  view = "RNA_topgenes", 
+  factors = 1:6,
+  show_colnames = FALSE, main = 'RNA_topgenes'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="RNA_topgenes", 
+  factor=1
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="RNA_topgenes", 
+  factor=2
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="RNA_topgenes", 
+  factor=3
+)
+```
+
+#### WES
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple4, 
+  view = "mutation", 
+  factors = 1:6,
+  show_colnames = F, main = 'Mutation Data'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="mutation", 
+  factor=1
+)
+```
+
+
+#### radiomics
+```{r}
+plotWeightsHeatmap(
+  MOFA_simple4, 
+  view = "radiomics", 
+  factors = 1:6,
+  show_colnames = F, main = 'Radiomics Data'
+)
+```
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="radiomics", 
+  factor=1
+)
+```
+
+
+```{r}
+plotTopWeights(
+  MOFA_simple4, 
+  view="radiomics", 
+  factor=2
+)
+```
+
+
+### Feature set enrichment analysis in the active views
+```{r}
+# Load reactome annotations
+data("reactomeGS") # binary matrix with feature sets in rows and features in columns
+
+# perform enrichment analysis
+gsea <- runEnrichmentAnalysis(
+  MOFA_simple4,
+  view = "RNA_topgenes",
+  feature.sets = reactomeGS,
+  alpha = 0.01
+)
+```
+
+```{r}
+plotEnrichmentBars(gsea, alpha=0.01)
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 1:2
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple2,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 3:4
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple4,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+```{r fig.width = 9, fig.height = 5}
+interestingFactors <- 5:6
+
+fseaplots <- lapply(interestingFactors, function(factor) {
+  plotEnrichment(
+    MOFA_simple4,
+    gsea,
+    factor = factor,
+    alpha = 0.01,
+    max.pathways = 10 # The top number of pathways to display
+  )
+})
+
+cowplot::plot_grid(fseaplots[[1]], fseaplots[[2]],
+                   ncol = 1, labels = paste("Factor", interestingFactors))
+```
+
+
+
+```{r}
+plotFactorScatters(
+  MOFA_simple4,
+  factors = c(1:5),
+  color_by = "TP53"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple4,
+  factors = c(1:5),
+  color_by = "KRAS"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple4,
+  factors = c(1:5),
+  color_by = "EGFR"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple4,
+  factors = c(1:5),
+  color_by = "Epithelial_10"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple4,
+  factors = c(1:5),
+  color_by = "Epithelial_1"
+)
+```
+
+```{r}
+plotFactorScatters(
+  MOFA_simple4,
+  factors = c(1:5),
+  color_by = "Endothelial"
+)
+```
+
+
+```{r}
+plotFactorScatters(
+  MOFA_simple4,
+  factors = c(1:5),
+  color_by = "Endothelial"
+)
+```
+
+```{r}
+plotFactorScatter(
+  MOFA_simple4,
+  factors = 1:2, dot_size = 3,
+  color_by = "TP53",      # color by the IGHV values that are part of the training data
+)
+```
+
+```{r}
+plotFactorScatter(
+  MOFA_simple4,
+  factors = 1:2, dot_size = 3,
+  color_by = "ENSG00000060718",
+  name_color = 'COL11A1'
+)
+```
+
+
+```{r}
+plotFactorScatter(
+  MOFA_simple4,
+  factors = 1:2, dot_size = 3,
+  color_by = "Epithelial_1",     
+)
+```
+
+```{r}
+plotFactorScatter(
+  MOFA_simple4,
+  factors = 1:2, dot_size = 3,
+  color_by = "SILA_S",     
+)
+```
+
