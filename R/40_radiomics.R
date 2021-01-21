@@ -4,13 +4,14 @@ healthmyne <- healthmyne[-which(healthmyne$MRN == ''),]
 aneri <- read_excel("Library/Mobile Documents/com~apple~CloudDocs/Documents/Vanderbilt/Massion_Lab/Projects/CyTOF_ADC_project/Data/Radiomics/MergeFile.Mafe's Final List HM Raw Data AB.xlsx")
 aneri$...1 <- NULL
 colnames(aneri)[1] <- 'pt_ID'
-CDE <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2020FEB25_SA.csv')
 
 k <- match(healthmyne$StudyInstanceUID, aneri$StudyInstanceUID)
 healthmyne <- cbind('pt_ID'= aneri$pt_ID[k], healthmyne)
 healthmyne$PT.ID <- NULL
 
+
 # Matching with CDE
+CDE <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2020FEB25_SA.csv')
 k <- match(CDE$pt_ID, healthmyne$pt_ID)
 healthmyne <- healthmyne[k,]
 healthmyne$pt_ID <- CDE$pt_ID

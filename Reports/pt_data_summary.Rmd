@@ -149,74 +149,163 @@ bp_f(CDE, chr_colnm='Smoking_Status', sila_colnm='SILA', main_title='SILA score 
 
 ```
 
+```{r}
+# ggpubr::ggscatter(CDE, x = 'SILA', y = c("Age_at_collection"),
+#           add = "reg.line", conf.int = TRUE, combine = TRUE,
+#           cor.coef = TRUE, cor.method = "spearman", add.params = list(color = 'grey'),
+#           xlab = "SILA score", ylab = 'condition')
+```
+
 
 # New classification 
 
+## Identifying outliers
+```{r, echo=FALSE}
+flag = c()
+for (i in 1:nrow(CDE)){
+    # if SILA >=0.5 stage shouldn't be 0, histology shouldn't be lepidic
+    if (CDE$SILA[i]>=0.5) {
+        if( CDE$Stages_simplified[i] %in% c('Stage 0') || 
+            CDE$Hist_predominant[i] %in% c('lepidic')) {
+            #cat('flag!: ', CDE$pt_ID[i], '\n')
+            flag = c(flag, i)
+        }
+    }
+    # if SILA <0.5 stage shouldn't be 3 or 4, histology shouldn't be solid or micropapillary, 
+    # patient shouldn't be dead, have a recurrence or a progression, CANARY shouldn't be Poor
+    if (CDE$SILA[i]<0.5) {
+        if ( CDE$Stages_simplified[i] %in% c('Stage III', 'Stage IV') || 
+            CDE$Hist_predominant[i] %in% c('solid', 'micropapillary') || 
+            CDE$Death_st[i] == 'Yes' || 
+            CDE$Recurrence_st[i] == 'Yes' || 
+            CDE$Progression_st[i] == 'Yes' ||
+            CDE$CANARY[i] == 'P' ){
+            #cat('flag!: ', CDE$pt_ID[i], '\n')
+            flag = c(flag, i)
+        }
+
+    }
+}
+
+
+
+fl_df <- CDE[flag, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
+    'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
+    'Progression_st')]
+
+fl_g <- fl_df[which(fl_df$CANARY == 'G'),]
+fl_i <- fl_df[which(fl_df$CANARY == 'I'),]
+fl_p <- fl_df[which(fl_df$CANARY == 'P'),]
+fl_df <- rbind(fl_g, fl_i, fl_p)
+knitr::kable(fl_df)
+```
+
+## Option 1: Indolent < 0.5 | Aggressive  >= 0.5
+
 ```{r, echo=FALSE}
 ind <- CDE[which(CDE$SILA <= 0.5),]
 agg <- CDE[which(CDE$SILA > 0.5),]
+n_op1 <- c(rep(0, nrow(CDE)))
 ```
 
-## Indolent as SILA < 0.5
+### Indolent as SILA < 0.5
 ```{r, echo=FALSE}
 k <- which(CDE$SILA < 0.5)
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
 pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
 pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
 pie_chart(CDE[k,], 'Death_st', 'Death Status')
 pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
 pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
 
-ind[which(ind$Stages_simplified == 'Stage II'),'SILA']
+i_df <- CDE[k, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
+    'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
+    'Progression_st')]
+knitr::kable(i_df)
+n_op1[k] <- 'ind'
 ```
 
-```{r, echo=FALSE}
-ind <- CDE[which(CDE$SILA <= 0.5),]
-
-print('STAGE 0: ')
-sort(ind[which(ind$Stages_simplified == 'Stage 0'),'SILA'])
-
-print('STAGE I: ')
-sort(ind[which(ind$Stages_simplified == 'Stage I'),'SILA'])
-
-print('STAGE II: ')
-sort(ind[which(ind$Stages_simplified == 'Stage II'),'SILA'])
-
-print('STAGE III: ') 
-sort(ind[which(ind$Stages_simplified == 'Stage III'),'SILA'])
-
-print('STAGE IV: ') 
-sort(ind[which(ind$Stages_simplified == 'Stage IV'),'SILA'])
-```
-
-## AGGRESSIVE as SILA >= 0.5
+### AGGRESSIVE as SILA >= 0.5
 ```{r, echo=FALSE}
 k <- which(CDE$SILA >= 0.5)
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
 pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
 pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
 pie_chart(CDE[k,], 'Death_st', 'Death Status')
 pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
 pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
-```
-```{r, echo=FALSE}
-agg <- CDE[which(CDE$SILA > 0.5),]
 
-print('STAGE 0: ')
-sort(agg[which(agg$Stages_simplified == 'Stage 0'),'SILA'])
-
-print('STAGE I: ')
-sort(agg[which(agg$Stages_simplified == 'Stage I'),'SILA'])
-
-print('STAGE II: ')
-sort(agg[which(agg$Stages_simplified == 'Stage II'),'SILA'])
-
-print('STAGE III: ') 
-sort(agg[which(agg$Stages_simplified == 'Stage III'),'SILA'])
-
-print('STAGE IV: ') 
-sort(agg[which(agg$Stages_simplified == 'Stage IV'),'SILA'])
+a_df <- CDE[k, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
+    'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
+    'Progression_st')]
+knitr::kable(a_df)
+n_op1[k] <- 'agg'
 ```
 
+## Option 2: Indolent < 0.4 | intermediate > 0.4 <= 0.6 | Aggressive  > 0.6
 
 ```{r, echo=FALSE}
+ind <- CDE[which(CDE$SILA <= 0.4),]
+int <- CDE[which(CDE$SILA > 0.4 & CDE$SILA <= 0.6),]
+agg <- CDE[which(CDE$SILA < 0.6),]
+n_op2 <- c(rep(0, nrow(CDE)))
+```
 
+### Indolent as SILA <= 0.4
+```{r, echo=FALSE}
+k <- which(CDE$SILA <= 0.4)
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+i_df <- CDE[k, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
+    'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
+    'Progression_st')]
+knitr::kable(i_df)
+n_op2[k] <- 'ind'
+```
+
+### Intermediate as SILA > 0.4 <= 0.6
+```{r, echo=FALSE}
+k <- which(CDE$SILA > 0.4 & CDE$SILA <= 0.6)
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+int_df <- CDE[k, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
+    'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
+    'Progression_st')]
+knitr::kable(int_df)
+n_op2[k] <- 'int'
+```
+
+### AGGRESSIVE as SILA > 0.6
+```{r, echo=FALSE}
+k <- which(CDE$SILA > 0.6)
+hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
+axis(1, at = seq(0, 1, .1))
+pie_chart(CDE[k,], 'Stages_simplified', 'Stage')
+pie_chart(CDE[k,], 'Hist_predominant', 'Histology')
+pie_chart(CDE[k,], 'Death_st', 'Death Status')
+pie_chart(CDE[k,], 'Recurrence_st', 'Recurrence Status')
+pie_chart(CDE[k,], 'Progression_st', 'Progression Status')
+a_df <- CDE[k, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
+    'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
+    'Progression_st')]
+knitr::kable(a_df)
+n_op2[k] <- 'agg'
+```
+
+```{r, echo=FALSE}
+CDE['n_op1'] <- n_op1
+CDE['n_op2'] <- n_op2
+write.csv(CDE, "/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2021JAN13_SA_MF.csv", row.names = FALSE)
 ```
