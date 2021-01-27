@@ -31,17 +31,17 @@ pie_chart(CDE, 'Hist_predominant', 'Histology')
 pie_chart(CDE, 'Death_st', 'Death Status')
 
 flag = c()
-
 for (i in 1:nrow(CDE)){
-    # if SILA >=0.5 stage shouldn't be 0 (or 1), histology shouldn't be lepidic
+    # if SILA >=0.5 stage shouldn't be 0, histology shouldn't be lepidic
     if (CDE$SILA[i]>=0.5) {
-        if( CDE$Stages_simplified[i] %in% c('Stage 0', 'Stage I') || 
+        if( CDE$Stages_simplified[i] %in% c('Stage 0') || 
             CDE$Hist_predominant[i] %in% c('lepidic')) {
             cat('flag!: ', CDE$pt_ID[i], '\n')
             flag = c(flag, i)
         }
     }
-    
+    # if SILA <0.5 stage shouldn't be 3 or 4, histology shouldn't be solid or micropapillary, 
+    # patient shouldn't be dead, have a recurrence or a progression, CANARY shouldn't be Poor
     if (CDE$SILA[i]<0.5) {
         if ( CDE$Stages_simplified[i] %in% c('Stage III', 'Stage IV') || 
             CDE$Hist_predominant[i] %in% c('solid', 'micropapillary') || 
@@ -61,6 +61,9 @@ for (i in 1:nrow(CDE)){
 fl_df <- CDE[flag, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
     'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
     'Progression_st')]
-fl_df[which(fl_df$CANARY == 'G'),]
-fl_df[which(fl_df$CANARY == 'I'),]
-fl_df[which(fl_df$CANARY == 'P'),]
+
+fl_g <- fl_df[which(fl_df$CANARY == 'G'),]
+fl_i <- fl_df[which(fl_df$CANARY == 'I'),]
+fl_p <- fl_df[which(fl_df$CANARY == 'P'),]
+fl_df <- rbind(fl_g, fl_i, fl_p)
+fl_df

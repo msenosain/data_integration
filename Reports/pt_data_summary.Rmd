@@ -183,11 +183,8 @@ for (i in 1:nrow(CDE)){
             #cat('flag!: ', CDE$pt_ID[i], '\n')
             flag = c(flag, i)
         }
-
     }
 }
-
-
 
 fl_df <- CDE[flag, c('pt_ID','SILA', 'CANARY', 'Stages_simplified', 'X8th_ed_path_stage', 
     'Hist_predominant', 'Hist_other_patterns', 'Death_st', 'Recurrence_st', 
@@ -226,7 +223,7 @@ knitr::kable(i_df)
 n_op1[k] <- 'ind'
 ```
 
-### AGGRESSIVE as SILA >= 0.5
+### Aggressive as SILA >= 0.5
 ```{r, echo=FALSE}
 k <- which(CDE$SILA >= 0.5)
 hist(CDE$SILA[k], xlab="SILA score", main = 'SILA Score', xlim=c(0,1), col="chocolate", border="brown", las=1, xaxt = "n")
@@ -308,4 +305,9 @@ n_op2[k] <- 'agg'
 CDE['n_op1'] <- n_op1
 CDE['n_op2'] <- n_op2
 write.csv(CDE, "/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2021JAN13_SA_MF.csv", row.names = FALSE)
+```
+
+```{r, echo=FALSE}
+bp_f(CDE, chr_colnm='n_op1', sila_colnm='SILA', main_title='SILA score by Option 1', x_title='new classification')
+bp_f(CDE, chr_colnm='n_op2', sila_colnm='SILA', main_title='SILA score by Option 2', x_title='new classification')
 ```
