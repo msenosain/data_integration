@@ -87,7 +87,7 @@ rownames(ed_dcv) <- p_all$pt_ID
 #---------------------------------------------------------------------------
 # TF activity
 #---------------------------------------------------------------------------
-
+library(viper)
 # Function extracted from dorothea code
 # https://github.com/saezlab/dorothea/blob/master/R/helpers.R#L17
 dorothea2viper_regulons <- function(df) {
@@ -107,7 +107,7 @@ result <- WGCNA::collapseRows(ls_preprocessed$vsd_mat,
 
 data <- data.frame(result$datETcollapsed)
 
-regulons = dorothea_hs %>%
+regulons = dorothea::dorothea_hs %>%
   filter(confidence %in% c("A", "B"))
 
 regu <- dorothea2viper_regulons(regulons)
