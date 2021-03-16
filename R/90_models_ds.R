@@ -286,12 +286,20 @@ pt_ID <- rownames(wes_binary)[k]
 
 CDE <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2021JAN13_SA_MF.csv')
 CDE <- CDE[match(pt_ID, CDE$pt_ID),]
-pts_y <- data.frame(pt_ID=CDE$pt_ID, SILA=CDE$SILA)
+pts_y <- data.frame(pt_ID=CDE$pt_ID, SILA=CDE$SILA, n_op2= CDE$n_op2)
 
+set.seed(101)
 training_y <- sample_n(pts_y, size = round(nrow(pts_y)*0.75))
 test_y <- pts_y[-which(pts_y$pt_ID %in% training_y$pt_ID),]
 
-## SMOTE for training (?)
+training_y['ds'] <- 'training'
+test_y['ds'] <- 'test'
+
+traintest_info <- rbind(training_y, test_y)
+
+write.csv(traintest_info, file.path(path, 'traintest_info.csv'))
+
+
 
 
 
