@@ -1,0 +1,594 @@
+---
+title: "Summary of RF"
+author: "Mafe Senosain"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(randomForest)
+library(caret)
+library(caTools)
+library(dplyr)
+library(tidyverse)
+source("/Users/senosam/Documents/Repositories/Research/data_integration/R/52_MLtraining.R")
+source("/Users/senosam/Documents/Repositories/Research/data_analysis_cytof/R/20_ClustAnnot_functions.R")
+```
+
+```{r, echo=FALSE}
+# Load data
+load('/Users/senosam/Documents/Massion_lab/data_integration/models/models_res/models_by_ds.RData')
+load('/Users/senosam/Documents/Massion_lab/data_integration/models/models_res/models_CONCAT_ls.RData')
+```
+
+```{r}
+top_coef_plot <- function(final_model, model_name, ds_name, enet=FALSE, reactome=FALSE, reactome_info){
+  # compute coefficients from model
+  if (enet){
+    coefficients <- as.data.frame(as.matrix(coef(model_ls$model_fit$finalModel, (model_ls$model_fit$bestTune$lambda))))
+  }
+  coefficients = coef(final_model)
+  sum.coef = sum(sapply(coefficients, abs))
+  coefficients = coefficients * 100 / sum.coef
+  coefficients = sort(coefficients[, 1 , 1])
+  
+  # Create top coef data frame
+  rc_pos <- data.frame(c(head(coefficients, 5)))
+  colnames(rc_pos) <- c('pos_pred')
+  rc_pos$ID <- rownames(rc_pos)
+  rc_pos <- reshape2::melt(rc_pos)
+  rc_neg <- data.frame(c(tail(coefficients, 5)))
+  colnames(rc_neg) <- c('neg_pred')
+  rc_neg$ID <- rownames(rc_neg)
+  rc_neg <- reshape2::melt(rc_neg)
+  rc <- rbind(rc_pos, rc_neg)
+  print(rc$ID[grep('reactome', rc$ID)])
+  if(reactome) {
+    reactome_rows <- grep('reactome', rc$ID)
+    k <- which(reactome_info$path_ID %in% gsub('rna_', '', rc$ID[reactome_rows]))
+    rc$ID[reactome_rows] <- reactome_info$path_names[k]
+  }
+  
+  # Plot
+  p <- ggplot(data=rc, aes(reorder(ID, value), value, fill=variable)) +
+    geom_bar(stat="identity") +
+    theme_minimal() +
+    ggtitle(paste(model_name, ' model with ', ds_name)) +
+    xlab("Variable") + 
+    ylab("Regression coefficient") +
+    coord_flip() +
+    theme(legend.position="none", plot.title = element_text(hjust = 0.5))
+  
+  p
+}
+
+ftimp_gg <- function(model_ls, n_topft = 10, model_name, ds_name, reactome=FALSE, reactome_info){
+    require('ggplot2')
+    require('iml')
+    
+    # Feature Importance
+    ftimp_rf <- caret::varImp(model_ls$model_fit)
+    ftimp_rf <- ftimp_rf$importance %>% 
+      dplyr::arrange(desc(.)) %>%
+      dplyr::top_n(n_topft) %>%
+      mutate(Features = rownames(.))
+    top_fts <- ftimp_rf$Features
+    if(reactome) {
+      reactome_rows <- grep('reactome', ftimp_rf$Features)
+      k <- which(reactome_info$path_ID %in% gsub('rna_', '', ftimp_rf$Features[reactome_rows]))
+      ftimp_rf$Features[reactome_rows] <- reactome_info$path_names[k]
+    }
+    print(ggplot(ftimp_rf, aes(x=reorder(Features, Overall), y=Overall)) +
+        geom_bar(stat="identity", fill='steelblue') +
+        labs(x ="Features", y = "Importance %")+
+        coord_flip() +
+        theme_minimal() +
+        ggtitle(paste(model_name, ' model with ', ds_name)) +
+        theme(legend.position="none", plot.title = element_text(hjust = 0.5)))
+    
+    # Feature effects
+    X = model_ls$TrainSet[which(names(model_ls$TrainSet) != "SILA")]
+    y = model_ls$TrainSet$SILA
+    predictor <- Predictor$new(model_ls$model_fit, data = X, y = y)
+    
+    print(plot(FeatureEffects$new(predictor, features = top_fts)))
+}
+
+frac_dif <- function(model_ls){
+    frac_dif <- ((model_ls$pred/model_ls$TestSet$SILA)-1)*100
+}
+
+```
+
+```{r}
+err_df <- data.frame('Model'=NA, 'RMSE'=NA, 'MAE'=NA)
+```
+
+
+```{r}
+reactome_info <- read.csv('/Users/senosam/Documents/Massion_lab/data_integration/models/data/rna_reactomeinfo.csv', row.names = 1)
+```
+
+
+# Model based on CyTOF frequencies
+```{r}
+ds_name = 'CyTOF frequencies'
+model_ds <- models_by_ds$cytof_freq
+```
+
+## PLS
+### Model metrics
+```{r}
+model_ls <- model_ds$model_PLS
+model_name = 'PLS'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+err_df[1,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Top regression coefficients
+The regression coefficients are normalized so their absolute sum is 100 and the result is sorted.
+```{r}
+top_coef_plot(model_ls$model_fit$finalModel, model_name, ds_name)
+```
+
+
+## Random Forest
+### Model metrics
+```{r}
+model_ls <- model_ds$model_RF
+model_name = 'RF'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[2,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Feature Importance
+```{r}
+ftimp_gg(model_ls, model_name=model_name, ds_name=ds_name)
+```
+
+
+# Model based on CyTOF bulk expression
+```{r}
+ds_name = 'CyTOF bulk expression'
+model_ds <- models_by_ds$cytof_medianprot
+```
+
+## PLS
+### Model metrics
+```{r}
+model_ls <- model_ds$model_PLS
+model_name = 'PLS'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[3,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Top regression coefficients
+The regression coefficients are normalized so their absolute sum is 100 and the result is sorted.
+```{r}
+top_coef_plot(model_ls$model_fit$finalModel, model_name, ds_name)
+```
+
+
+## Random Forest
+### Model metrics
+```{r}
+model_ls <- model_ds$model_RF
+model_name = 'RF'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[4,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Feature Importance
+```{r}
+ftimp_gg(model_ls, model_name=model_name, ds_name=ds_name)
+```
+
+
+# Model based on RNA Seq REACTOME scores
+```{r}
+ds_name = 'RNA Seq REACTOME scores'
+model_ds <- models_by_ds$rna_reactome
+```
+
+## PLS
+### Model metrics
+```{r}
+model_ls <- model_ds$model_PLS
+model_name = 'PLS'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[5,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Top regression coefficients
+The regression coefficients are normalized so their absolute sum is 100 and the result is sorted.
+```{r  , fig.width = 8, fig.height = 5}
+top_coef_plot(model_ls$model_fit$finalModel, model_name, ds_name, reactome = TRUE, reactome_info = reactome_info)
+```
+
+## Random Forest
+### Model metrics
+```{r}
+model_ls <- model_ds$model_RF
+model_name = 'RF'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[6,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Feature Importance
+```{r  , fig.width = 8, fig.height = 5}
+ftimp_gg(model_ls, model_name=model_name, ds_name=ds_name, reactome=TRUE, reactome_info=reactome_info)
+```
+
+# Model based on RNA Seq VIPER TF activity
+```{r}
+ds_name = 'RNA Seq VIPER TF activity'
+model_ds <- models_by_ds$rna_viper4
+```
+
+## PLS
+### Model metrics
+```{r}
+model_ls <- model_ds$model_PLS
+model_name = 'PLS'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[7,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Top regression coefficients
+The regression coefficients are normalized so their absolute sum is 100 and the result is sorted.
+```{r}
+top_coef_plot(model_ls$model_fit$finalModel, model_name, ds_name)
+```
+
+## Random Forest
+### Model metrics
+```{r}
+model_ls <- model_ds$model_RF
+model_name = 'RF'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[8,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Feature Importance
+```{r}
+ftimp_gg(model_ls, model_name=model_name, ds_name=ds_name)
+```
+
+# Model based on WES mut
+```{r}
+ds_name = 'WES mutation'
+model_ds <- models_by_ds$wes_binary
+```
+
+## PLS
+### Model metrics
+```{r}
+model_ls <- model_ds$model_PLS
+model_name = 'PLS'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[9,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Top regression coefficients
+The regression coefficients are normalized so their absolute sum is 100 and the result is sorted.
+```{r}
+top_coef_plot(model_ls$model_fit$finalModel, model_name, ds_name)
+```
+
+## Random Forest
+### Model metrics
+```{r}
+model_ls <- model_ds$model_RF
+model_name = 'RF'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[10,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Feature Importance
+```{r}
+ftimp_gg(model_ls, model_name=model_name, ds_name=ds_name)
+```
+
+# Model based on Concatenated Data
+```{r}
+ds_name = 'Concatenated Data'
+load('/Users/senosam/Documents/Massion_lab/data_integration/models/models_res/models_CONCAT_ls.RData')
+```
+
+## PLS
+### Model metrics
+```{r}
+model_ls <- models_CONCAT_ls$model_PLS
+model_name = 'PLS'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[11,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Top regression coefficients
+The regression coefficients are normalized so their absolute sum is 100 and the result is sorted.
+```{r  , fig.width = 8, fig.height = 5}
+# , reactome = TRUE, reactome_info = reactome_info
+top_coef_plot(model_ls$model_fit$finalModel, model_name, ds_name, reactome = TRUE, reactome_info = reactome_info)
+```
+
+## Random Forest
+### Model metrics
+```{r}
+model_ls <- models_CONCAT_ls$model_RF
+model_name = 'RF'
+cat('RMSE test: ', model_ls$rmse_test, '\n')
+cat('MAE test: ', MAE(model_ls$pred, model_ls$TestSet$SILA), '\n')
+model_ls$model_fit
+plot(model_ls$model_fit)
+
+err_df[12,] <- c(paste0(ds_name, ': ', model_name), model_ls$rmse_test, MAE(model_ls$pred, model_ls$TestSet$SILA))
+```
+
+### Feature Importance
+```{r  , fig.width = 8, fig.height = 5}
+ftimp_gg(model_ls, model_name=model_name, ds_name=ds_name, reactome=TRUE, reactome_info=reactome_info)
+```
+
+# Fractional Difference all models
+
+```{r}
+fd_cytoffreq_RF <- frac_dif(models_by_ds$cytof_freq$model_RF)
+fd_cytoffreq_PLS <- frac_dif(models_by_ds$cytof_freq$model_PLS)
+
+fd_cytofmed_RF <- frac_dif(models_by_ds$cytof_medianprot$model_RF)
+fd_cytofmed_PLS <- frac_dif(models_by_ds$cytof_medianprot$model_PLS)
+
+fd_rnareac_RF <- frac_dif(models_by_ds$rna_reactome$model_RF)
+fd_rnareac_PLS <- frac_dif(models_by_ds$rna_reactome$model_PLS)
+
+fd_rnaviper_RF <- frac_dif(models_by_ds$rna_viper4$model_RF)
+fd_rnaviper_PLS <- frac_dif(models_by_ds$rna_viper4$model_PLS)
+
+fd_wes_RF <- frac_dif(models_by_ds$wes_binary$model_RF)
+fd_wes_PLS <- frac_dif(models_by_ds$wes_binary$model_PLS)
+
+fd_cc_RF <- frac_dif(models_CONCAT_ls$model_RF)
+fd_cc_PLS <- frac_dif(models_CONCAT_ls$model_PLS)
+
+```
+
+```{r echo=FALSE, fig.width = 6, fig.height = 4}
+
+fd_df <- data.frame(fd_cytoffreq_RF, fd_cytoffreq_PLS, fd_cytofmed_RF, fd_cytofmed_PLS, 
+                    fd_rnareac_RF, fd_rnareac_PLS, fd_rnaviper_RF, fd_rnaviper_PLS,
+                    fd_wes_RF, fd_wes_PLS, fd_cc_RF, fd_cc_PLS)
+fd_df <- cbind(SILA=rep(models_CONCAT_ls$model_RF$TestSet$SILA, 12), reshape::melt(fd_df))
+
+ggplot(data=fd_df, aes(x=SILA, y=value, group=variable)) +
+  geom_line(aes(color=variable))+
+  geom_point(aes(color=variable))+
+  ylim(c(-100, 100))+
+  labs(x ="SILA score", y = "Frac. Difference (%)")
+```
+
+```{r}
+err_df$MAE <- as.numeric(err_df$MAE)
+err_df$RMSE <- as.numeric(err_df$RMSE)
+err_df$MAE <- round(err_df$MAE, digits = 3)
+err_df$RMSE <- round(err_df$RMSE, digits = 3)
+knitr::kable(err_df)
+```
+
+
+# Ensemble approach: Majority vote
+```{r}
+test_true <- traintest_info[which(traintest_info$ds=='test'), 'n_op2']
+```
+
+## Random Forest
+```{r}
+res <- matrix(NA, nrow = length(which(traintest_info$ds=='test')), ncol = length(names(models_by_ds)))
+colnames(res) <- names(models_by_ds)
+model_nm = 'model_RF'
+for(ds in names(models_by_ds)){
+  x <- models_by_ds[[ds]][[model_nm]]$pred
+  for(i in 1:length(x)){
+    if(x[i] <0.4) {
+      res[i,ds] <- 'ind'
+    } else if(x[i] > 0.4 && x[i] <= 0.6) {
+      res[i,ds] <- 'int'
+    } else {
+      res[i,ds] <- 'agg'
+    }
+  }
+}
+
+pred_maj <- c()
+for(i in 1:nrow(res)){
+  x <- which.max(table(res[i,]))
+  pred_maj <- c(pred_maj, names(x))
+}
+
+confusionMatrix(as.factor(pred_maj), as.factor(test_true))
+```
+
+## PLS
+```{r}
+res <- matrix(NA, nrow = length(which(traintest_info$ds=='test')), ncol = length(names(models_by_ds)))
+colnames(res) <- names(models_by_ds)
+model_nm = 'model_PLS'
+for(ds in names(models_by_ds)){
+  x <- models_by_ds[[ds]][[model_nm]]$pred
+  for(i in 1:length(x)){
+    if(x[i] <0.4) {
+      res[i,ds] <- 'ind'
+    } else if(x[i] > 0.4 && x[i] <= 0.6) {
+      res[i,ds] <- 'int'
+    } else {
+      res[i,ds] <- 'agg'
+    }
+  }
+}
+
+pred_maj <- c()
+for(i in 1:nrow(res)){
+  x <- which.max(table(res[i,]))
+  pred_maj <- c(pred_maj, names(x))
+}
+
+confusionMatrix(as.factor(pred_maj), as.factor(test_true))
+```
+
+# Concatenation approach
+
+## Random Forest
+```{r}
+x <- models_CONCAT_ls$model_RF$pred
+res <- c()
+for(i in 1:length(x)){
+  if(x[i] <0.4) {
+    res <- c(res,'ind')
+  } else if(x[i] > 0.4 && x[i] <= 0.6) {
+    res <- c(res,'int')
+  } else {
+    res <- c(res,'agg')
+  }
+}
+
+confusionMatrix(as.factor(res), as.factor(test_true))
+```
+
+## PLS
+```{r}
+x <- models_CONCAT_ls$model_PLS$pred
+res <- c()
+for(i in 1:length(x)){
+  if(x[i] <0.4) {
+    res <- c(res,'ind')
+  } else if(x[i] > 0.4 && x[i] <= 0.6) {
+    res <- c(res,'int')
+  } else {
+    res <- c(res,'agg')
+  }
+}
+
+confusionMatrix(as.factor(res), as.factor(test_true))
+```
+
+```{r}
+mmetrics <- data.frame(Approach=c('Ensemble', 'Ensemble', 'Concatenation', 'Concatenation'),
+                       Algorithm=c('RF', 'PLS', 'RF', 'PLS'),
+                       Accuracy=c(0.7273,0.8182,0.5455,0.6364),
+                       Sensitivity=c(0.6667,0.7778,0.4444,0.5556),
+                       NVP=c(0.4,0.5,0.2857,0.3333))
+
+mmetrics <- reshape2::melt(mmetrics)
+```
+
+
+```{r fig.width = 6, fig.height = 2} 
+sbst <- mmetrics[mmetrics$variable== 'Accuracy',]
+ggplot(mmetrics, aes(fill=Approach, y=value, x=Algorithm)) + 
+    geom_bar(position="dodge", stat="identity") +
+    theme_minimal() +
+    ylim(c(0,1)) +
+    labs(title=NULL,x=NULL, y =NULL) +
+    scale_fill_brewer(palette="Dark2")+
+    facet_wrap(~variable, scales='free') +
+    theme(strip.text.x = element_text(size = 18), 
+          axis.text.x =element_text(size = 15), 
+          axis.text.y =element_text(size = 12))
+```
+
+
+# DIABLO
+
+```{r}
+library(mixOmics)
+```
+
+```{r}
+cytof_freq = models_by_ds$cytof_freq$model_RF$TrainSet
+rownames(cytof_freq) <- NULL
+cytof_bulk = models_by_ds$cytof_medianprot$model_RF$TrainSet
+rownames(cytof_bulk) <- NULL
+rna_reac = models_by_ds$rna_reactome$model_RF$TrainSet
+rownames(rna_reac) <- NULL
+rna_viper = models_by_ds$rna_viper4$model_RF$TrainSet
+rownames(rna_viper) <- NULL
+
+data = list(cytof_freq = cytof_freq, 
+            cytof_bulk = cytof_bulk,
+            rna_reac = rna_reac,
+            rna_viper = rna_viper) 
+            #wes = models_by_ds$wes_binary$model_RF$TrainSet)
+
+# row.names = NULL
+```
+
+```{r}
+# outcome
+Y = as.matrix(models_by_ds$cytof_freq$model_RF$TrainSet$SILA)
+summary(Y)
+```
+
+```{r}
+design = matrix(0.1, ncol = length(data), nrow = length(data), 
+                dimnames = list(names(data), names(data)))
+diag(design) = 0
+
+design
+```
+
+```{r}
+sgcc.res = block.spls(X = data, Y = Y, ncomp = 5,
+                           design = design)
+set.seed(123) # for reproducibility, only when the `cpus' argument is not used
+# this code takes a couple of min to run
+perf.diablo = perf(sgcc.res, validation = 'Mfold', folds = 5) #, nrepeat = 10)
+
+#perf.diablo  # lists the different outputs
+plot(perf.diablo) 
+```
+
