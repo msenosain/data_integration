@@ -29,7 +29,7 @@ source("/Users/senosam/Documents/Repositories/Research/data_analysis_cytof/R/40_
 
 ```{r, echo=FALSE}
 # read edited CSV file as CDE_TMA36
-CDE <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2021JAN13_SA.csv')
+CDE <- read.csv(file = '/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_2021JAN13_SA_MF.csv')
 ```
 
 ```{r, echo=FALSE}
@@ -197,6 +197,7 @@ fl_df <- rbind(fl_g, fl_i, fl_p)
 knitr::kable(fl_df)
 ```
 
+
 ## Option 1: Indolent < 0.5 | Aggressive  >= 0.5
 
 ```{r, echo=FALSE}
@@ -311,3 +312,98 @@ write.csv(CDE, "/Users/senosam/Documents/Massion_lab/CyTOF_summary/CDE_TMA36_202
 bp_f(CDE, chr_colnm='n_op1', sila_colnm='SILA', main_title='SILA score by Option 1', x_title='new classification')
 bp_f(CDE, chr_colnm='n_op2', sila_colnm='SILA', main_title='SILA score by Option 2', x_title='new classification')
 ```
+
+# Summary Omics datasets heatmap
+
+```{r}
+# Load data
+df_cytof <- read.csv(file = '/Users/senosam/Documents/Massion_lab/data_integration/models/data/cytof_medianprot.csv')
+df_rna <- read.csv(file = '/Users/senosam/Documents/Massion_lab/data_integration/models/data/rna_viper25.csv')
+df_wes <- read.csv(file = '/Users/senosam/Documents/Massion_lab/data_integration/models/data/wes_binary.csv')
+df_rad <- read.csv(file = '/Users/senosam/Documents/Massion_lab/data_integration/models/data/rad_healthmyne.csv')
+```
+
+```{r}
+CDE_omics <- CDE
+CDE_omics['cytof'] <- 0
+CDE_omics[which(CDE$pt_ID %in% df_cytof$X),'cytof'] <- 1
+CDE_omics['rnaseq'] <- 0
+CDE_omics[which(CDE$pt_ID %in% df_rna$X),'rnaseq'] <- 1
+CDE_omics['wes'] <- 0
+CDE_omics[which(CDE$pt_ID %in% df_wes$X),'wes'] <- 1
+# CDE_omics['HM'] <- 0
+# CDE_omics[which(CDE$pt_ID %in% df_rad$X),'HM'] <- 1
+CDE_omics['mxif'] <- 1
+sc_rna <- c('12929', '13774', '7984', '14965', '12889', '8356', 
+            '11918', '11522', '15002', '15467', '13634', '14428',
+            '11817', '14958', '12935', '13636')
+CDE_omics['scrnaseq'] <- 0
+CDE_omics[which(CDE$pt_ID %in% sc_rna),'scrnaseq'] <- 1
+rownames(CDE_omics) <- CDE_omics$pt_ID
+CDE_omics <- CDE_omics[,86:ncol(CDE_omics)]
+```
+
+```{r}
+mat = t(as.matrix(CDE_omics))
+
+ha = HeatmapAnnotation(
+  Prognosis = CDE$n_op2,
+  SILA = CDE$SILA,
+  Stage = CDE$Stages_simplified,
+  Histology = CDE$Hist_predominant,
+  Smoking_Status = CDE$Smoking_Status,
+  Nodule_size_cm = CDE$Path_Nodule_Size_cm,
+  Sex = CDE$Gender,
+  Age = CDE$Age_at_collection,
+  gp = gpar(col = "black"),
+  simple_anno_size = unit(0.3, "cm"),
+  annotation_name_gp = gpar(fontsize = 8) #size of annotation name
+)
+
+bp_top = HeatmapAnnotation(sum = anno_barplot(apply(CDE_omics, 1, sum), border=FALSE),
+                           show_annotation_name = FALSE,
+                           gp = gpar(fill =2:3, col =2:3))
+
+ht_opt(heatmap_column_names_gp = gpar(fontsize = 5), 
+    heatmap_column_title_gp = gpar(fontsize = 10, fontface = "bold"),
+    heatmap_row_names_gp = gpar(fontsize = 10, fontface = "bold"),
+    legend_title_gp = gpar(fontsize = 8, fontface = "bold"),
+    legend_labels_gp = gpar(fontsize = 8)
+)
+#ht_opt(RESET = TRUE)
+
+ht = Heatmap(mat, name = "Data \ncollected", col = c('grey', 'red'),
+        column_split = factor(CDE$n_op2, levels= c('ind', 'int', 'agg')),
+        column_title = c('Indolent', 'Intermediate', 'Aggressive'),
+        row_labels = c('CyTOF \n(n=71)', 'RNA-Seq \n(n=78)', 'WES \n(n=57) ', 'MxIF \n(n=93)', 'scRNA-Seq \n(n=16)'),
+        width = unit(18, "cm"), 
+        height = unit(5, "cm"),
+        #width = unit(10, "cm"), 
+        #height = unit(5, "cm"),
+        bottom_annotation = ha, 
+        top_annotation = bp_top,
+        show_row_dend = FALSE,
+        show_column_dend = FALSE,
+        column_order = order(CDE$SILA),
+        row_order = c(1:5),
+        rect_gp = gpar(col = "white", lwd = 1)
+        )
+draw(ht, padding = unit(c(2, 20, 2, 2), "mm"))
+#draw(ht, padding = unit(c(6, 20, 6, 20), "cm"))
+```
+
+```{r}
+k = which(CDE$pt_ID %in% sc_rna)
+CDE_scRNA = CDE[k,]
+di_ii <- grep('Date', colnames(CDE_scRNA))
+CDE_scRNA[di_ii] <- NULL
+CDE_scRNA$n_op1 <- NULL
+CDE_scRNA$CANARY <- NULL
+CDE_scRNA$Protocol_.me <- NULL
+CDE_scRNA$Surg_Path <- NULL
+CDE_scRNA$LDKA <- NULL
+write.csv(CDE_scRNA, "/Users/senosam/Documents/Massion_lab/sc_RNA_Seq/DI_CDE_2021JAN13_SA_MF.csv", row.names = FALSE)
+```
+
+
+
